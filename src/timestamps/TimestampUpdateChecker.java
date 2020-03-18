@@ -170,7 +170,7 @@ public class TimestampUpdateChecker {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		if (latexDiffCrawler.HTTPDownloadUtility.compareHashes(lastPath, path)) {
+		if (latexDiffCrawler.HTTPDownloadUtility.compareHashesForLocalFiles(lastPath, path)) {
 			// delete
 			File slaveFile = new File(path);
 			slaveFile.delete();
