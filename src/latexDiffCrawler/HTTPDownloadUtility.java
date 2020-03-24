@@ -14,6 +14,7 @@ import java.net.http.HttpClient.Version;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.zip.Adler32;
@@ -142,6 +143,25 @@ public class HTTPDownloadUtility {
 		}
 		return null;
 	}
+	
+	public static String[] getFilesFromFILESlast07Days(String FILES_url) {
+		String[] lines = null;
+		if (FILES_url.endsWith("FILES.last07days")) {
+			try {
+				String s = HttpUrlRequest(FILES_url);
+				if (s != null) {
+					lines = s.split("\n");
+				}
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		return lines;
+	}
 
 
 	public static boolean compareHashesOnline(String masterURI, InputStream mirrorIS) throws IOException {
@@ -165,11 +185,18 @@ public class HTTPDownloadUtility {
 		return masterChecksum;
 	}
 	
-	public static long getHash(String masterURI) {
+	public static long getHash(String masterURI, String file) {
 		long masterChecksum = 0;
 		try (InputStream is = Files.newInputStream(Paths.get(masterURI))) {
 			masterChecksum = Adler(is);
-		} catch (IOException e) {
+		} catch (InvalidPathException e) { //TODO: nosuchfileexception
+			if(file != null) {
+				InputStream is = HTTPDownloadUtility.getInputStream(Constants.DANTE + file);
+				if(is != null) {
+					masterChecksum = Adler(is);
+				}
+			}
+		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
@@ -177,8 +204,8 @@ public class HTTPDownloadUtility {
 	}
 	
 	public static boolean compareHashesForLocalFiles(String masterUri, String mirrorUri) {
-		long masterChecksum = getHash(masterUri);
-		long mirrorChecksum = getHash(mirrorUri);
+		long masterChecksum = getHash(masterUri, null);
+		long mirrorChecksum = getHash(mirrorUri, null);
 		return masterChecksum == mirrorChecksum;
 	}
 

@@ -10,6 +10,7 @@ public class Mirror {
 	private String name;
 	private String directory;
 	private String FILES_url;
+	private String FILESlast07Days_url;
 	private LocalDateTime timestamp;
 	
 	//TODO:
@@ -19,10 +20,15 @@ public class Mirror {
 	public Mirror(String url) {
 		this.url = url;
 		setName(url);
-		setAndMakeDirectory(url);
+		if(!name.contains("dante.ctan.org")) setAndMakeDirectory(url);
 		FILES_url = url + "FILES.byname";
+		FILESlast07Days_url = url + "FILES.last07days";
 	}
 
+	public String getFILESlast07Days_url() {
+		return FILESlast07Days_url;
+	}
+	
 	public String getFILES_url() {
 		return FILES_url;
 	}

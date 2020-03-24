@@ -3,12 +3,14 @@ package latexDiffCrawler;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Hashtable;
 import java.util.List;
 
 import timestamps.TimestampUpdateChecker;
 
 public class Main {
 
+	static MasterHashHelper msh;
 	static ArrayList<String> mirrorsToCheck = new ArrayList<String>();
 	static ArrayList<Mirror> mirrors;
 	static ArrayList<Mirror> equalTSmirrors;
@@ -69,9 +71,12 @@ public class Main {
 			if (!(i == divisor - 1))
 				index = (i + 1) * quot;
 			else
-				index = size - 1;
+				index = size;
+//			Hashtable<String,Long> table = msh.getTable(i * quot, index);
 			part_i = files.subList(i * quot, index);
-			readers.add(new MirrorReader(equalTSmirrors, part_i, size));
+//			System.out.println(table.size());
+			System.out.println(part_i.size());
+			readers.add(new MirrorReader(equalTSmirrors, part_i, msh.getMap(), size));
 		}
 		return readers;
 	}
@@ -80,10 +85,10 @@ public class Main {
 		ArrayList<Mirror> equalTSMirrors = new ArrayList<Mirror>();
 		for (Mirror mirror : mirrors) {
 			if (MirrorReader.compareTimeStamps(mirror)) {
-				System.out.println(mirror.getName() + "has equal timestamp");
+				System.out.println(mirror.getName() + " has equal timestamp");
 				equalTSMirrors.add(mirror);
 			} else {
-				System.out.println(mirror.getName() + "has other timestamp: " + mirror.getTimestamp());
+				System.out.println(mirror.getName() + " has other timestamp: " + mirror.getTimestamp());
 			}
 		}
 		return equalTSMirrors;
@@ -101,38 +106,37 @@ public class Main {
 	// --> I can't check so many at a time (maybe like 3 at most or so?)
 	// and I had to implement Threads (I am not sure how much I can have in order to
 	// avoid DoS.. right now I have 9 which still needs 6 hours to check one Mirror)
-	// idea: dont check obsolete/... because one should not use these packages
-	// anymore
 
 	// TODO: Big problem: to compare the big 4 (they update every hour) within one
 	// hour
 	// TODO: do the TODO in the Mirror class
-	// TODO: make file with with computed hashes for the master file, so they don't
-	// have to be computed anymore; update them with 
-	// http://dante.ctan.org/tex-archive/FILES.last07days
-	//
 	public static void main(String[] args) {
 		mirrors = init();
-
+//		(new MasterRSync()).download();
+		msh = new MasterHashHelper(true);
 		// TODO:
 //		while(mirrors != null && !mirrors.isEmpty()) {
 //				new MasterRSync().download();
 //				...
 //				if(updatedList.size() == mirrors.size()) sleepUntilXX03(); 
 //			}
-
+		
+		
 		equalTSmirrors = Main.findEqualTimeStampMirrors();
-		Mirror Dante = new Mirror(Constants.DANTE);
-		List<String> files = HTTPDownloadUtility.getFilesFromFILES(Dante.getFILES_url(), true);
+		ArrayList<Mirror> test = new ArrayList<Mirror>();
+		test.add(equalTSmirrors.get(0));
+		equalTSmirrors = test;
+		List<String> files = msh.getFiles();
 		int size = files.size();
-		int divisor = 9;
+		size = 1001;
+		int divisor = 3;
 		List<MirrorReader> readers = getReader(files, size, divisor);
 		for (MirrorReader reader : readers) {
 			reader.setMirrorReaders(readers);
 			reader.start();
 		}
 		int checkedFiles = 0;
-		while (checkedFiles <= size) {
+		while (checkedFiles <= size && ((float) checkedFiles / size) < 0.99) {
 			checkedFiles = 0;
 			for (MirrorReader reader : readers) {
 				checkedFiles += reader.getCheckedFiles();
@@ -145,5 +149,7 @@ public class Main {
 				e.printStackTrace();
 			}
 		}
+		
+		
 	}
 }

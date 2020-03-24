@@ -10,22 +10,26 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Hashtable;
 import java.util.List;
 
 public class MirrorReader extends Thread {
 
 	private ArrayList<Mirror> mirrors;
+	Hashtable<String, Long> table;
 	private List<String> files;
+	private List<String> checkedFilesList = new ArrayList<String>();
 	private int checkedFilesForCurrentList = 0;
 	private int checkedFiles;
 	public boolean exit = false;
 	private List<MirrorReader> mirrorReaders;
 	private int bigSize;
 
-	public MirrorReader(ArrayList<Mirror> mirrors, List<String> files, int bigSize) {
+	public MirrorReader(ArrayList<Mirror> mirrors, List<String> files, Hashtable<String, Long> table, int bigSize) {
 		this.mirrors = mirrors;
 		this.files = files;
 		this.bigSize = bigSize;
+		this.table = table;
 	}
 
 	public List<String> getFiles() {
@@ -101,7 +105,7 @@ public class MirrorReader extends Thread {
 			for (int i = 0; i < files.size(); i++) {
 				String file = files.get(i);
 				System.out.println(file + " : this is nr. " + (i + 1));
-				long masterChecksum = HTTPDownloadUtility.getHash(Constants.MASTER_DIR + "\\" + file);
+				long masterChecksum = table.get(file);
 				for (Mirror mirror : mirrors) {
 					if (!HTTPDownloadUtility.filesAreEqual2(file, mirror, masterChecksum)) {
 						String saveDir = MirrorReader.makeDir(mirror, file);
@@ -128,9 +132,10 @@ public class MirrorReader extends Thread {
 				checkedFilesForCurrentList++;
 			}
 		}
+		checkedFilesList.addAll(files);
 		helpOtherMirror();
 	}
-
+	
 	public List<String> getHelp() {
 		int index = (files.size() - checkedFilesForCurrentList) / 2;
 		List<String> subFilesList = null;
@@ -155,6 +160,47 @@ public class MirrorReader extends Thread {
 		}
 		if (needsHelpReader != null && bigChecked < 0.95 * bigSize) {
 			String oldStart = files.get(0);
+			List<String> subFiles = needsHelpReader.getHelp();
+			files = subFiles;
+			System.out.println("\n I finished my List starting with " + oldStart);
+			if (files != null) {
+				System.out.println("Now I am helping at " + files.get(0) + "\n");
+				compareFiles();
+			} else {
+				try {
+					Thread.sleep(30000);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				helpOtherMirror();
+			}
+		}
+		else System.out.println("No one needs help anymore, I am finished.");
+	}
+	
+	public List<String> checkedFiles(){
+		return this.checkedFilesList;
+	}
+	
+	private void helpOtherMirrorNew() {
+		MirrorReader needsHelpReader = null;
+		int i = bigSize;
+		int bigChecked = 0;
+		for (MirrorReader reader : mirrorReaders) {
+			bigChecked += reader.getCheckedFiles();
+			int checked = reader.getCheckedFilesForCurrentList();
+			if (checked < i && !reader.equals(this)) {
+				i = checked;
+				needsHelpReader = reader;
+			}
+		}
+		if (needsHelpReader != null && bigChecked < 0.95 * bigSize) {
+			String oldStart = "";
+			for(String file : table.keySet()) {
+				oldStart = file;
+				break;
+			}
 			files = needsHelpReader.getHelp();
 			System.out.println("\n I finished my List starting with " + oldStart);
 			if (files != null) {
