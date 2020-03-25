@@ -117,6 +117,9 @@ public class MirrorReader extends Thread {
 						else {
 							// Copy the master File
 							String fileName = MirrorReader.getFileName(file);
+							if(file.equals(MasterHashHelper.fontsGreekKdInstall)) {
+								file = MasterHashHelper.workAround;
+							}
 							File dest = new File(saveDir + "/" + fileName.substring(0, fileName.lastIndexOf('.'))
 									+ "_master" + fileName.substring(fileName.lastIndexOf('.'), fileName.length()));
 							try {

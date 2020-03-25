@@ -26,7 +26,8 @@ public class MasterHashHelper {
 	private List<String> files;
 	boolean removeObsolete;
 	private Mirror Dante;
-	private LocalDate lastUpdate;
+	public static String fontsGreekKdInstall = "fonts/greek/kd/INSTALL";
+	public static String workAround = fontsGreekKdInstall + "_workAround";
 
 	/*
 	 * with @removeObsolete you can determine if you want to load the obsolete files
@@ -98,6 +99,12 @@ public class MasterHashHelper {
 					while ((inputLine = in.readLine()) != null) {
 						if (inputLine.contains(">f") || inputLine.contains("*deleting"))
 							files.add(inputLine);
+						else if(inputLine.contains("fonts/greek/kd/INSTALL\" is a directory")) {
+							HTTPDownloadUtility.downloadFile(Dante.getUrl() + fontsGreekKdInstall,
+									Constants.MASTER_DIR + "\\" + workAround);
+							long masterChecksum = HTTPDownloadUtility.getHash(Constants.MASTER_DIR + "\\" + workAround, fontsGreekKdInstall);
+							map.put(fontsGreekKdInstall, masterChecksum);
+						}
 					}
 				}
 			}
