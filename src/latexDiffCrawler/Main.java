@@ -62,7 +62,7 @@ public class Main {
 		}
 	}
 
-	public static List<MirrorReader> getReader(List<String> files, int size, int divisor) {
+	public static List<MirrorReader> createReaders(List<String> files, int size, int divisor) {
 		int quot = size / divisor;
 		List<MirrorReader> readers = new ArrayList<MirrorReader>();
 		for (int i = 0; i < divisor; i++) {
@@ -94,6 +94,33 @@ public class Main {
 		return equalTSMirrors;
 	}
 
+	private static void startReading() {
+		List<String> files = msh.getFiles();
+		int size = files.size();
+		size = 1001;
+		int divisor = 3;
+		List<MirrorReader> readers = createReaders(files, size, divisor);
+		for (MirrorReader reader : readers) {
+			reader.setMirrorReaders(readers);
+			reader.start();
+		}
+		int checkedFiles = 0;
+		while (checkedFiles <= size && ((float) checkedFiles / size) < 0.99) {
+			checkedFiles = 0;
+			for (MirrorReader reader : readers) {
+				checkedFiles += reader.getCheckedFiles();
+			}
+			System.out.println(checkedFiles + " are checked = " + ((float) checkedFiles / size) * 100 + " %.");
+			try {
+				Thread.sleep(60000);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		mirrors.removeAll(equalTSmirrors);
+	}
+	
 	// an idea: skip crawling and go through
 	// http://dante.ctan.org/tex-archive/FILES.byname but here you possibly can't be
 	// sure if there is really every file listed
@@ -113,44 +140,22 @@ public class Main {
 	public static void main(String[] args) {
 		mirrors = init();
 		MasterRSync mrs = new MasterRSync();
-		mrs.download();
-		msh = mrs.getMasterHashHelper();
-		// TODO:
-//		while(mirrors != null && !mirrors.isEmpty()) {
-//				new MasterRSync().download();
-//				...
-//				if(updatedList.size() == mirrors.size()) sleepUntilXX03(); 
-//			}
-		
-		
-		equalTSmirrors = Main.findEqualTimeStampMirrors();
-		ArrayList<Mirror> test = new ArrayList<Mirror>();
-		test.add(equalTSmirrors.get(0));
-		equalTSmirrors = test;
-		List<String> files = msh.getFiles();
-		int size = files.size();
-		size = 1001;
-		int divisor = 3;
-		List<MirrorReader> readers = getReader(files, size, divisor);
-		for (MirrorReader reader : readers) {
-			reader.setMirrorReaders(readers);
-			reader.start();
-		}
-		int checkedFiles = 0;
-		while (checkedFiles <= size && ((float) checkedFiles / size) < 0.99) {
-			checkedFiles = 0;
-			for (MirrorReader reader : readers) {
-				checkedFiles += reader.getCheckedFiles();
+		while(mirrors != null && !mirrors.isEmpty()) {
+			mrs.download(); //TODO: download fonts/greek/kd/install, rename it
+			msh = mrs.getMasterHashHelper();
+			equalTSmirrors = Main.findEqualTimeStampMirrors();
+			if(equalTSmirrors.isEmpty()) {
+				sleepUntilXX03();
+				continue;
 			}
-			System.out.println(checkedFiles + " are checked = " + ((float) checkedFiles / size) * 100 + " %.");
-			try {
-				Thread.sleep(60000);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+			int maxMirrors = 1;
+			if(equalTSmirrors.size() > maxMirrors) {
+				ArrayList<Mirror> checkOnlyTheseMirrors = new ArrayList<Mirror>();
+				checkOnlyTheseMirrors.add(equalTSmirrors.get(maxMirrors - 1));
+				equalTSmirrors = checkOnlyTheseMirrors;
 			}
+			startReading();
 		}
-		
 		
 	}
 }

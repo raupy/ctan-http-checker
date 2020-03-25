@@ -107,7 +107,7 @@ public class MirrorReader extends Thread {
 				System.out.println(file + " : this is nr. " + (i + 1));
 				long masterChecksum = table.get(file);
 				for (Mirror mirror : mirrors) {
-					if (!HTTPDownloadUtility.filesAreEqual2(file, mirror, masterChecksum)) {
+					if (!HTTPDownloadUtility.filesAreEqual(file, mirror, masterChecksum)) {
 						String saveDir = MirrorReader.makeDir(mirror, file);
 						boolean didDownload = HTTPDownloadUtility.downloadFile(mirror.getUrl() + file,
 								mirror.getDirectory() + "\\" + file);
