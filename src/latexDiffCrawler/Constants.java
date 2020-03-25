@@ -7,5 +7,5 @@ public class Constants {
 	public static String MASTER_DIR = ROOT_DIR + "repo\\master";
 	public static String DANTE = "http://dante.ctan.org/tex-archive/";
 	public static String MASTER_HASHES = ROOT_DIR + "masterHashes.txt";
-	public static String RSCYNC_LOG = ROOT_DIR + "rysnc.log";
+	public static String RSCYNC_LOG = ROOT_DIR + "rsync.log";
 }

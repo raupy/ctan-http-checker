@@ -112,8 +112,9 @@ public class Main {
 	// TODO: do the TODO in the Mirror class
 	public static void main(String[] args) {
 		mirrors = init();
-//		(new MasterRSync()).download();
-		msh = new MasterHashHelper(true);
+		MasterRSync mrs = new MasterRSync();
+		mrs.download();
+		msh = mrs.getMasterHashHelper();
 		// TODO:
 //		while(mirrors != null && !mirrors.isEmpty()) {
 //				new MasterRSync().download();
