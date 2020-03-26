@@ -16,6 +16,7 @@ import java.util.List;
 public class MirrorReader extends Thread {
 
 	private ArrayList<Mirror> mirrors;
+	private List<String> difficultFiles;
 	Hashtable<String, Long> table;
 	private List<String> files;
 	private List<String> checkedFilesList = new ArrayList<String>();
@@ -25,11 +26,13 @@ public class MirrorReader extends Thread {
 	private List<MirrorReader> mirrorReaders;
 	private int bigSize;
 
-	public MirrorReader(ArrayList<Mirror> mirrors, List<String> files, Hashtable<String, Long> table, int bigSize) {
+	public MirrorReader(ArrayList<Mirror> mirrors, List<String> files, List<String> difficultFiles,
+			Hashtable<String, Long> table, int bigSize) {
 		this.mirrors = mirrors;
 		this.files = files;
 		this.bigSize = bigSize;
 		this.table = table;
+		this.difficultFiles = difficultFiles;
 	}
 
 	public List<String> getFiles() {
@@ -98,13 +101,36 @@ public class MirrorReader extends Thread {
 		return equalTimeStamps;
 	}
 
+	private void copyFile(String fileName, String file, String saveDir) {
+		String fileDirPath = file.substring(0, file.length() - fileName.length());
+		File dest = new File(saveDir + "/" + fileName.substring(0, fileName.lastIndexOf('.')) + "_master"
+				+ fileName.substring(fileName.lastIndexOf('.'), fileName.length()));
+		String source = Constants.MASTER_DIR + "\\" + file;
+		if (difficultFiles.contains(fileDirPath)) {
+			if (file.endsWith(".")) /* systems\mac\textures\information\FAQ.comp.text.tex. */
+				/* support\qfig\qfig3ple. */
+				file = (String) file.subSequence(0, file.length() - 1);
+			else {
+				file = HTTPDownloadUtility.replaceNotAllowedCharactersForURI(file);
+			}
+			source = Constants.MASTER_DIFFICULT_FILES_DIR + "\\" + file;
+		} else if (file.equals(MasterHashHelper.fontsGreekKdInstall)) {
+			file = MasterHashHelper.workAround;
+			source = Constants.MASTER_DIR + "\\" + file;
+		}
+		try {
+			Files.copy(Paths.get(source), dest.toPath(), StandardCopyOption.REPLACE_EXISTING);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
 	public void compareFiles() {
 		checkedFilesForCurrentList = 0;
 		if (files != null) {
 //			if (Main.compareFILES_byname(mirror)) {
 			for (int i = 0; i < files.size(); i++) {
 				String file = files.get(i);
-				System.out.println(file + " : this is nr. " + (i + 1));
 				long masterChecksum = table.get(file);
 				for (Mirror mirror : mirrors) {
 					if (!HTTPDownloadUtility.filesAreEqual(file, mirror, masterChecksum)) {
@@ -114,20 +140,9 @@ public class MirrorReader extends Thread {
 						if (!didDownload)
 							// TODO: files.add(file);
 							System.out.println(file + " has to be downloaded again");
-						else {
-							// Copy the master File
+						else { // Copy the master File
 							String fileName = MirrorReader.getFileName(file);
-							if(file.equals(MasterHashHelper.fontsGreekKdInstall)) {
-								file = MasterHashHelper.workAround;
-							}
-							File dest = new File(saveDir + "/" + fileName.substring(0, fileName.lastIndexOf('.'))
-									+ "_master" + fileName.substring(fileName.lastIndexOf('.'), fileName.length()));
-							try {
-								Files.copy(Paths.get(Constants.MASTER_DIR + "\\" + file), dest.toPath(),
-										StandardCopyOption.REPLACE_EXISTING);
-							} catch (IOException e) {
-								e.printStackTrace();
-							}
+							copyFile(fileName, file, saveDir);
 						}
 					}
 				}
@@ -138,7 +153,7 @@ public class MirrorReader extends Thread {
 		checkedFilesList.addAll(files);
 		helpOtherMirror();
 	}
-	
+
 	public List<String> getHelp() {
 		int index = (files.size() - checkedFilesForCurrentList) / 2;
 		List<String> subFilesList = null;
@@ -178,14 +193,14 @@ public class MirrorReader extends Thread {
 				}
 				helpOtherMirror();
 			}
-		}
-		else System.out.println("No one needs help anymore, I am finished.");
+		} else
+			System.out.println("No one needs help anymore, I am finished.");
 	}
-	
-	public List<String> checkedFiles(){
+
+	public List<String> checkedFiles() {
 		return this.checkedFilesList;
 	}
-	
+
 	private void helpOtherMirrorNew() {
 		MirrorReader needsHelpReader = null;
 		int i = bigSize;
@@ -200,7 +215,7 @@ public class MirrorReader extends Thread {
 		}
 		if (needsHelpReader != null && bigChecked < 0.95 * bigSize) {
 			String oldStart = "";
-			for(String file : table.keySet()) {
+			for (String file : table.keySet()) {
 				oldStart = file;
 				break;
 			}
@@ -218,8 +233,8 @@ public class MirrorReader extends Thread {
 				}
 				helpOtherMirror();
 			}
-		}
-		else System.out.println("No one needs help anymore, I am finished.");
+		} else
+			System.out.println("No one needs help anymore, I am finished.");
 	}
 
 	public void run() {

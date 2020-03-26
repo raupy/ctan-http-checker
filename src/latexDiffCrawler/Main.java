@@ -1,6 +1,11 @@
 package latexDiffCrawler;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Hashtable;
@@ -14,6 +19,7 @@ public class Main {
 	static ArrayList<String> mirrorsToCheck = new ArrayList<String>();
 	static ArrayList<Mirror> mirrors;
 	static ArrayList<Mirror> equalTSmirrors;
+	static List<String> difficultFiles = new ArrayList<String>();
 
 	// initializes the list of http / https CTAN Mirrors
 	public static ArrayList<Mirror> init() {
@@ -29,6 +35,24 @@ public class Main {
 			mirrors = updateMirrorList();
 		}
 		return mirrors;
+	}
+	
+	public static void loadDifficultFiles(){
+		try {
+			InputStream is = Files.newInputStream(Paths.get(Constants.DIFFICULT_FILES));
+			BufferedReader in = null;
+			if (is != null) {
+				in = new BufferedReader(new InputStreamReader(is));
+				String inputLine = "";
+				if (in != null) {
+					while ((inputLine = in.readLine()) != null) {
+						difficultFiles.add(inputLine);
+					}
+				}
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 	public static ArrayList<Mirror> updateMirrorList() {
@@ -76,7 +100,7 @@ public class Main {
 			part_i = files.subList(i * quot, index);
 //			System.out.println(table.size());
 			System.out.println(part_i.size());
-			readers.add(new MirrorReader(equalTSmirrors, part_i, msh.getMap(), size));
+			readers.add(new MirrorReader(equalTSmirrors, part_i, difficultFiles, msh.getMap(), size));
 		}
 		return readers;
 	}
@@ -137,12 +161,14 @@ public class Main {
 	// TODO: Big problem: to compare the big 4 (they update every hour) within one
 	// hour
 	// TODO: do the TODO in the Mirror class
+	
 	public static void main(String[] args) {
 		mirrors = init();
+		loadDifficultFiles();
 		MasterRSync mrs = new MasterRSync();
 		while(mirrors != null && !mirrors.isEmpty()) {
-			mrs.download(); //TODO: download fonts/greek/kd/install, rename it
-			msh = mrs.getMasterHashHelper();
+			mrs.download(); 
+			msh = mrs.getMasterHashHelper(); 
 			equalTSmirrors = Main.findEqualTimeStampMirrors();
 			if(equalTSmirrors.isEmpty()) {
 				sleepUntilXX03();
@@ -154,8 +180,12 @@ public class Main {
 				checkOnlyTheseMirrors.add(equalTSmirrors.get(maxMirrors - 1));
 				equalTSmirrors = checkOnlyTheseMirrors;
 			}
+//			HTTPDownloadUtility.getHash(Constants.MASTER_DIR + "\\" + "systems/mac/textures/information/FAQ.comp.text.tex.", "systems/mac/textures/information/FAQ.comp.text.tex.");
 			startReading();
+//			HTTPDownloadUtility.downloadFile(Constants.DANTE + "systems/mac/textures/utilities/RTF-%3eTeX.sit.hqx", equalTSmirrors.get(0).getDirectory() + "\\RTF-%3eTeX.sit.hqx");
+//			HTTPDownloadUtility.getHash(Constants.MASTER_DIR + "\\" + "systems/mac/textures/utilities/RTF->TeX.sit.hqx", "systems/mac/textures/utilities/RTF->TeX.sit.hqx");
 		}
-		
+		// dante.ctan.org/tex-archive/systems/mac/textures/utilities/RTF-%3eTeX.sit.hqx
+		// dante.ctan.org/tex-archive/systems/mac/textures/utilities/RTF-%3eTeX.sit.hqx
 	}
 }

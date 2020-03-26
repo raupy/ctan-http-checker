@@ -1,0 +1,5 @@
+help/comp-fonts-FAQ/
+support/bibtexperllibs/LaTeX-ToUnicode/man/man3/
+systems/mac/textures/utilities/
+systems\mac\textures\information\
+support\qfig\
