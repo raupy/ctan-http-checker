@@ -1,5 +1,7 @@
 package latexDiffCrawler;
 
+import java.io.File;
+
 import com.github.fracpete.processoutput4j.output.CollectingProcessOutput;
 import com.github.fracpete.rsync4j.RSync;
 
@@ -16,6 +18,8 @@ public class MasterRSync {
 	}
 	
 	public void download() {
+		File log = new File(Constants.RSCYNC_LOG);
+		log.delete();
 		RSync rsync = new RSync()
 				  .source("rsync://rsync.dante.ctan.org/CTAN/").humanReadable(true)
 				  //.destination("/cygdrive/e/slaverepo/master")

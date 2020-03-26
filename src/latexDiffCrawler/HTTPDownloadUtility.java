@@ -1,5 +1,6 @@
 package latexDiffCrawler;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -12,8 +13,10 @@ import java.net.http.HttpClient;
 import java.net.http.HttpClient.Version;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.zip.Adler32;
@@ -22,10 +25,34 @@ import java.util.zip.CheckedInputStream;
 public class HTTPDownloadUtility {
 	public static final int BUFFER_SIZE = 4096;
 
+	public static String replaceBracket(String file) {
+		file = file.replaceAll(">", "%3e");
+		return file.replaceAll("<", "%3e");
+	}
+	
+	public static String replaceBlanks(String file) {
+		return file.replaceAll(" ", "%");
+	}
+	
+	public static String replaceNotAllowedCharactersForURL(String file) {
+		file = replaceBracket(file);
+		file = replaceBlanks(file);
+		return file;
+	}
+	
+	public static String replaceNotAllowedCharactersForURI(String file) {
+		file = replaceBracket(file);
+		char[] notAllowedCharacters = {':', '*', '?', '"', '|'};
+		for(char c : notAllowedCharacters) {
+			file = file.replace(c, '%');
+		}
+		if(file.charAt(1) == '%') file = file.replaceFirst("%", ":");
+		return file;
+	}
+
 	// returns the inputStream from an HttpURLConnection for the specific @fileURL
 	// the returned inputStream can later be used for checking the checksum
 	public static InputStream getInputStream(String fileURL) {
-		fileURL = fileURL.replace(' ', '%');
 		InputStream inputStream = null;
 		HttpURLConnection httpConn;
 		try {
@@ -36,16 +63,31 @@ public class HTTPDownloadUtility {
 			if (responseCode == HttpURLConnection.HTTP_OK) {
 				inputStream = httpConn.getInputStream();
 			}
+		} catch (MalformedURLException e) {
+			e.printStackTrace();
+			return getInputStream(replaceNotAllowedCharactersForURL(fileURL));
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		return inputStream;
 	}
 
+	public static boolean HttpConnectionIsOkay(String fileURL) {
+		int responseCode = 0;
+		try {
+			URL url = new URL(fileURL);
+			HttpURLConnection httpConn = (HttpURLConnection) url.openConnection();
+			responseCode = httpConn.getResponseCode();
+			httpConn.disconnect();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return responseCode == HttpURLConnection.HTTP_OK;
+	}
+
 	public static boolean downloadFile(String fileURL, String saveFilePath) {
 		boolean didDownload = false;
-		fileURL = fileURL.replace(' ', '%');
 		try {
 			URL url = new URL(fileURL);
 			HttpURLConnection httpConn = (HttpURLConnection) url.openConnection();
@@ -65,9 +107,9 @@ public class HTTPDownloadUtility {
 			}
 			httpConn.disconnect();
 
-		} catch (MalformedURLException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
+		} catch (MalformedURLException e) {
+			e.printStackTrace();
+			return downloadFile(replaceNotAllowedCharactersForURL(fileURL), saveFilePath);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -80,11 +122,11 @@ public class HTTPDownloadUtility {
 	public static boolean downloadFile(HttpURLConnection httpConn, String saveFilePath) {
 		boolean didDownload = false;
 		try {
-			// opens input stream from the HTTP connection
-			InputStream inputStream = httpConn.getInputStream();
-
 			// opens an output stream to save into file
 			FileOutputStream outputStream = new FileOutputStream(saveFilePath);
+			
+			// opens input stream from the HTTP connection
+			InputStream inputStream = httpConn.getInputStream();
 
 			int bytesRead = -1;
 			byte[] buffer = new byte[BUFFER_SIZE];
@@ -95,8 +137,9 @@ public class HTTPDownloadUtility {
 			inputStream.close();
 			didDownload = true;
 		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
+			return downloadFile(httpConn, replaceNotAllowedCharactersForURI(saveFilePath));
+			
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -132,28 +175,53 @@ public class HTTPDownloadUtility {
 				ArrayList<String> files = new ArrayList<String>();
 				for (String st : lines) {
 					String fileURI = st.substring(st.lastIndexOf("|") + 2, st.length());
-					if(removeObsolete) {
-						if(!fileURI.startsWith("obsolete/")) files.add(fileURI);
-					}
-					else files.add(fileURI);
+					if (removeObsolete) {
+						if (!fileURI.startsWith("obsolete/"))
+							files.add(fileURI);
+					} else
+						files.add(fileURI);
 				}
 				return files;
 			}
 		}
 		return null;
 	}
-	
+
+	public static String makeDir(String newURI, String file) {
+		String pathToMake = "";
+		if (file.contains("/")) {
+			pathToMake = newURI.substring(0, newURI.lastIndexOf("/"));
+			new File(pathToMake).mkdirs();
+		}
+		return pathToMake;
+	}
 	
 	public static long getHash(String masterURI, String file) {
 		long masterChecksum = 0;
 		try (InputStream is = Files.newInputStream(Paths.get(masterURI))) {
 			masterChecksum = Adler(is);
-		} catch (InvalidPathException e) { //TODO: nosuchfileexception
-			if(file != null) {
-				InputStream is = HTTPDownloadUtility.getInputStream(Constants.DANTE + file);
-				if(is != null) {
-					masterChecksum = Adler(is);
-				}
+		} catch (AccessDeniedException e) {
+			String newURI = Constants.MASTER_DIFFICULT_FILES_DIR + "\\" + file;
+			makeDir(newURI, file);
+			downloadFile(Constants.DANTE + file, newURI);
+			return getHash(newURI, file);
+		} catch (InvalidPathException e) {
+			e.printStackTrace();
+			if (file != null) {
+				String newURI = Constants.MASTER_DIFFICULT_FILES_DIR + "\\" + file;
+				newURI = replaceNotAllowedCharactersForURI(newURI);
+				makeDir(newURI, file);
+				downloadFile(Constants.DANTE + file, newURI);
+				return getHash(newURI, file);
+			}
+		} catch (NoSuchFileException e) {
+			e.printStackTrace();
+			if (file != null && masterURI.endsWith(".")) {
+				String newURI = Constants.MASTER_DIFFICULT_FILES_DIR + "\\" + file;
+				newURI = (String) newURI.subSequence(0, newURI.length() - 1);
+				makeDir(newURI, file);
+				downloadFile(Constants.DANTE + file, newURI);
+				return getHash(newURI, file);
 			}
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
@@ -161,7 +229,7 @@ public class HTTPDownloadUtility {
 		}
 		return masterChecksum;
 	}
-	
+
 	public static boolean compareHashesForLocalFiles(String masterUri, String mirrorUri) {
 		long masterChecksum = getHash(masterUri, null);
 		long mirrorChecksum = getHash(mirrorUri, null);
@@ -203,7 +271,7 @@ public class HTTPDownloadUtility {
 		}
 		return equal;
 	}
-	
+
 	public static boolean filesAreEqual(String file, Mirror mirror, long masterChecksum) {
 		InputStream is = HTTPDownloadUtility.getInputStream(mirror.getUrl() + file);
 		boolean equal = false;
@@ -234,5 +302,5 @@ public class HTTPDownloadUtility {
 		}
 		return checksum;
 	}
-	
+
 }

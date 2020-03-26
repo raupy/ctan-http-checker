@@ -61,7 +61,9 @@ public class MasterHashHelper {
 		List<String> updatedFiles = getUpdatedFilesFromLogFile();
 		for (String line : updatedFiles) {
 			String fileURI = line.substring(line.lastIndexOf(" ") + 1, line.length());
-			if(line.contains("*deleting")) map.remove(fileURI);
+			if(line.contains("*deleting")) {
+				map.remove(fileURI);
+			}
 			else {
 				if (removeObsolete) {
 					if (!fileURI.startsWith("obsolete/"))
@@ -100,9 +102,9 @@ public class MasterHashHelper {
 						if (inputLine.contains(">f") || inputLine.contains("*deleting"))
 							files.add(inputLine);
 						else if(inputLine.contains("fonts/greek/kd/INSTALL\" is a directory")) {
-							HTTPDownloadUtility.downloadFile(Dante.getUrl() + fontsGreekKdInstall,
-									Constants.MASTER_DIR + "\\" + workAround);
-							long masterChecksum = HTTPDownloadUtility.getHash(Constants.MASTER_DIR + "\\" + workAround, fontsGreekKdInstall);
+//							HTTPDownloadUtility.downloadFile(Dante.getUrl() + fontsGreekKdInstall,
+//									Constants.MASTER_DIR + "\\" + workAround);
+							long masterChecksum = HTTPDownloadUtility.getHash(Constants.MASTER_DIR + "\\" + fontsGreekKdInstall, fontsGreekKdInstall);
 							map.put(fontsGreekKdInstall, masterChecksum);
 						}
 					}
@@ -120,6 +122,7 @@ public class MasterHashHelper {
 	 */
 	private void computeHashAndAddToMap(String file) {
 		long masterChecksum = HTTPDownloadUtility.getHash(Constants.MASTER_DIR + "\\" + file, file);
+		if(masterChecksum == 0) System.out.println("0 as checksum for " + file);
 		map.put(file, masterChecksum);
 	}
 
@@ -154,8 +157,7 @@ public class MasterHashHelper {
 				}
 			}
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			System.out.println("No master hash file yet, start computing it. This is going to take some minutes.");
 		}
 		return didLoad;
 	}
