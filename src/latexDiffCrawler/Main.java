@@ -36,8 +36,8 @@ public class Main {
 		}
 		return mirrors;
 	}
-	
-	public static void loadDifficultFiles(){
+
+	public static void loadDifficultFiles() {
 		try {
 			InputStream is = Files.newInputStream(Paths.get(Constants.DIFFICULT_FILES));
 			BufferedReader in = null;
@@ -51,7 +51,6 @@ public class Main {
 				}
 			}
 		} catch (IOException e) {
-			e.printStackTrace();
 		}
 	}
 
@@ -96,11 +95,9 @@ public class Main {
 				index = (i + 1) * quot;
 			else
 				index = size;
-//			Hashtable<String,Long> table = msh.getTable(i * quot, index);
 			part_i = files.subList(i * quot, index);
-//			System.out.println(table.size());
 			System.out.println(part_i.size());
-			readers.add(new MirrorReader(equalTSmirrors, part_i, difficultFiles, msh.getMap(), size));
+			readers.add(new MirrorReader(equalTSmirrors, part_i, msh.getMap()));
 		}
 		return readers;
 	}
@@ -121,15 +118,14 @@ public class Main {
 	private static void startReading() {
 		List<String> files = msh.getFiles();
 		int size = files.size();
-		size = 1001;
-		int divisor = 3;
+		int divisor = 22;
 		List<MirrorReader> readers = createReaders(files, size, divisor);
 		for (MirrorReader reader : readers) {
 			reader.setMirrorReaders(readers);
 			reader.start();
 		}
 		int checkedFiles = 0;
-		while (checkedFiles <= size && ((float) checkedFiles / size) < 0.99) {
+		while (checkedFiles <= size && ((float) checkedFiles / size) < 1) {
 			checkedFiles = 0;
 			for (MirrorReader reader : readers) {
 				checkedFiles += reader.getCheckedFiles();
@@ -144,48 +140,33 @@ public class Main {
 		}
 		mirrors.removeAll(equalTSmirrors);
 	}
-	
-	// an idea: skip crawling and go through
+
+	// skip crawling and go through
 	// http://dante.ctan.org/tex-archive/FILES.byname but here you possibly can't be
 	// sure if there is really every file listed
 
-	// this was a try to group some mirrors together (the one with the 7 o'clock
-	// timestamp) and check all of them
-	// but this is very very slow :(
-	// most of these mirrors will have their next update only four hours later and
-	// this won't fit at all
-	// --> I can't check so many at a time (maybe like 3 at most or so?)
-	// and I had to implement Threads (I am not sure how much I can have in order to
-	// avoid DoS.. right now I have 9 which still needs 6 hours to check one Mirror)
+	// TODO: do the TODO in the Mirror class and the MirrorReader class
 
-	// TODO: Big problem: to compare the big 4 (they update every hour) within one
-	// hour
-	// TODO: do the TODO in the Mirror class
-	
 	public static void main(String[] args) {
 		mirrors = init();
 		loadDifficultFiles();
 		MasterRSync mrs = new MasterRSync();
-		while(mirrors != null && !mirrors.isEmpty()) {
-			mrs.download(); 
-			msh = mrs.getMasterHashHelper(); 
+		while (mirrors != null && !mirrors.isEmpty()) {
+			mrs.download();
+			msh = mrs.getMasterHashHelper();
 			equalTSmirrors = Main.findEqualTimeStampMirrors();
-			if(equalTSmirrors.isEmpty()) {
+			if (equalTSmirrors.isEmpty()) {
 				sleepUntilXX03();
 				continue;
 			}
 			int maxMirrors = 1;
-			if(equalTSmirrors.size() > maxMirrors) {
+			if (equalTSmirrors.size() > maxMirrors) {
 				ArrayList<Mirror> checkOnlyTheseMirrors = new ArrayList<Mirror>();
 				checkOnlyTheseMirrors.add(equalTSmirrors.get(maxMirrors - 1));
 				equalTSmirrors = checkOnlyTheseMirrors;
 			}
-//			HTTPDownloadUtility.getHash(Constants.MASTER_DIR + "\\" + "systems/mac/textures/information/FAQ.comp.text.tex.", "systems/mac/textures/information/FAQ.comp.text.tex.");
 			startReading();
-//			HTTPDownloadUtility.downloadFile(Constants.DANTE + "systems/mac/textures/utilities/RTF-%3eTeX.sit.hqx", equalTSmirrors.get(0).getDirectory() + "\\RTF-%3eTeX.sit.hqx");
-//			HTTPDownloadUtility.getHash(Constants.MASTER_DIR + "\\" + "systems/mac/textures/utilities/RTF->TeX.sit.hqx", "systems/mac/textures/utilities/RTF->TeX.sit.hqx");
 		}
-		// dante.ctan.org/tex-archive/systems/mac/textures/utilities/RTF-%3eTeX.sit.hqx
-		// dante.ctan.org/tex-archive/systems/mac/textures/utilities/RTF-%3eTeX.sit.hqx
+
 	}
 }
