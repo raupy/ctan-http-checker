@@ -27,6 +27,7 @@ public class MasterHashHelper {
 	boolean removeObsolete;
 	private Mirror Dante;
 	public static String fontsGreekKdInstall = "fonts/greek/kd/INSTALL";
+	boolean didLoad = false;
 
 	/*
 	 * with @removeObsolete you can determine if you want to load the obsolete files
@@ -44,7 +45,7 @@ public class MasterHashHelper {
 	 * from this file and then it will be updated; otherwise it will be initialized
 	 */
 	public void loadOrInitMap() {
-		boolean didLoad = loadMap();
+		if(!didLoad) didLoad = loadMap();
 		if (didLoad)
 			updateMap();
 		// no master hash file
