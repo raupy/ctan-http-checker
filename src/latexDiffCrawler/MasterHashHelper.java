@@ -27,7 +27,6 @@ public class MasterHashHelper {
 	boolean removeObsolete;
 	private Mirror Dante;
 	public static String fontsGreekKdInstall = "fonts/greek/kd/INSTALL";
-	public static String workAround = fontsGreekKdInstall + "_workAround";
 
 	/*
 	 * with @removeObsolete you can determine if you want to load the obsolete files
@@ -51,6 +50,7 @@ public class MasterHashHelper {
 		// no master hash file
 		else
 			initMap();
+		saveDifficultFiles();
 	}
 
 	/*
@@ -63,6 +63,7 @@ public class MasterHashHelper {
 			String fileURI = line.substring(line.lastIndexOf(" ") + 1, line.length());
 			if(line.contains("*deleting")) {
 				map.remove(fileURI);
+				files.remove(fileURI);
 			}
 			else {
 				if (removeObsolete) {
@@ -179,4 +180,17 @@ public class MasterHashHelper {
 		}
 	}
 
+	public void saveDifficultFiles() {
+		try {
+			BufferedWriter writer = new BufferedWriter(new FileWriter(Constants.DIFFICULT_FILES));
+			for (String file : Main.difficultFiles) {
+				writer.write(file + "\n");
+			}
+			writer.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
 }

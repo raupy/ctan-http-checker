@@ -27,14 +27,19 @@ public class HTTPDownloadUtility {
 
 	public static String replaceBracket(String file) {
 		file = file.replaceAll(">", "%3e");
-		return file.replaceAll("<", "%3e");
+		return file.replaceAll("<", "%3c");
 	}
 	
 	public static String replaceBlanks(String file) {
-		return file.replaceAll(" ", "%");
+		return file.replaceAll(" ", "%20");
+	}
+	
+	public static String replacePercentSign(String file) {
+		return file.replaceAll("%", "%25");
 	}
 	
 	public static String replaceNotAllowedCharactersForURL(String file) {
+		file = replacePercentSign(file);
 		file = replaceBracket(file);
 		file = replaceBlanks(file);
 		return file;
@@ -52,7 +57,7 @@ public class HTTPDownloadUtility {
 
 	// returns the inputStream from an HttpURLConnection for the specific @fileURL
 	// the returned inputStream can later be used for checking the checksum
-	public static InputStream getInputStream(String fileURL) {
+	public static InputStream getInputStream(String fileURL, boolean ASCII_sensitive) {
 		InputStream inputStream = null;
 		HttpURLConnection httpConn;
 		try {
@@ -63,9 +68,13 @@ public class HTTPDownloadUtility {
 			if (responseCode == HttpURLConnection.HTTP_OK) {
 				inputStream = httpConn.getInputStream();
 			}
+			else {
+				httpConn.disconnect();
+				if(!ASCII_sensitive) return getInputStream(replaceNotAllowedCharactersForURL(fileURL), true);
+			}
 		} catch (MalformedURLException e) {
 			e.printStackTrace();
-			return getInputStream(replaceNotAllowedCharactersForURL(fileURL));
+			if(!ASCII_sensitive) return getInputStream(replaceNotAllowedCharactersForURL(fileURL), true);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -86,7 +95,7 @@ public class HTTPDownloadUtility {
 		return responseCode == HttpURLConnection.HTTP_OK;
 	}
 
-	public static boolean downloadFile(String fileURL, String saveFilePath) {
+	public static boolean downloadFile(String fileURL, String saveFilePath, boolean ASCII_sensitive) {
 		boolean didDownload = false;
 		try {
 			URL url = new URL(fileURL);
@@ -104,12 +113,13 @@ public class HTTPDownloadUtility {
 				didDownload = downloadFile(httpConn, saveFilePath);
 			} else {
 				System.out.println("No file to download. Server replied HTTP code: " + responseCode);
+				if(!ASCII_sensitive) return downloadFile(replaceNotAllowedCharactersForURL(fileURL), saveFilePath, true);
 			}
 			httpConn.disconnect();
 
 		} catch (MalformedURLException e) {
 			e.printStackTrace();
-			return downloadFile(replaceNotAllowedCharactersForURL(fileURL), saveFilePath);
+			if(!ASCII_sensitive) return downloadFile(replaceNotAllowedCharactersForURL(fileURL), saveFilePath, true);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -201,28 +211,27 @@ public class HTTPDownloadUtility {
 		try (InputStream is = Files.newInputStream(Paths.get(masterURI))) {
 			masterChecksum = Adler(is);
 		} catch (AccessDeniedException e) {
-			String newURI = Constants.MASTER_DIFFICULT_FILES_DIR + "\\" + file;
-			makeDir(newURI, file);
-			downloadFile(Constants.DANTE + file, newURI);
-			return getHash(newURI, file);
+			if(file != null) {
+				File masterFile = new File(masterURI);
+				String newURI = Constants.MASTER_DIFFICULT_FILES_DIR + "\\" + file;
+				if(masterFile.isDirectory()) newURI = newURI + newURI.charAt(newURI.length() - 1);
+				return tryAgain(file, newURI);
+			}
+			else e.printStackTrace();
 		} catch (InvalidPathException e) {
-			e.printStackTrace();
 			if (file != null) {
 				String newURI = Constants.MASTER_DIFFICULT_FILES_DIR + "\\" + file;
 				newURI = replaceNotAllowedCharactersForURI(newURI);
-				makeDir(newURI, file);
-				downloadFile(Constants.DANTE + file, newURI);
-				return getHash(newURI, file);
+				return tryAgain(file, newURI);
 			}
+			else e.printStackTrace();
 		} catch (NoSuchFileException e) {
-			e.printStackTrace();
 			if (file != null && masterURI.endsWith(".")) {
 				String newURI = Constants.MASTER_DIFFICULT_FILES_DIR + "\\" + file;
 				newURI = (String) newURI.subSequence(0, newURI.length() - 1);
-				makeDir(newURI, file);
-				downloadFile(Constants.DANTE + file, newURI);
-				return getHash(newURI, file);
+				return tryAgain(file, newURI);
 			}
+			else e.printStackTrace();
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -230,6 +239,13 @@ public class HTTPDownloadUtility {
 		return masterChecksum;
 	}
 
+	private static long tryAgain(String file, String newURI) {
+		if(!Main.difficultFiles.contains(file)) Main.difficultFiles.add(file);
+		makeDir(newURI, file);
+		downloadFile(Constants.DANTE + file, newURI, false);
+		return getHash(newURI, file);
+	}
+	
 	public static boolean compareHashesForLocalFiles(String masterUri, String mirrorUri) {
 		long masterChecksum = getHash(masterUri, null);
 		long mirrorChecksum = getHash(mirrorUri, null);
@@ -258,7 +274,7 @@ public class HTTPDownloadUtility {
 	}
 
 	public static boolean compareFILES_byname(Mirror mirror) {
-		InputStream is = HTTPDownloadUtility.getInputStream(mirror.getFILES_url());
+		InputStream is = HTTPDownloadUtility.getInputStream(mirror.getFILES_url(), false);
 		boolean equal = false;
 		if (is != null) {
 			try {
@@ -273,7 +289,7 @@ public class HTTPDownloadUtility {
 	}
 
 	public static boolean filesAreEqual(String file, Mirror mirror, long masterChecksum) {
-		InputStream is = HTTPDownloadUtility.getInputStream(mirror.getUrl() + file);
+		InputStream is = HTTPDownloadUtility.getInputStream(mirror.getUrl() + file, false);
 		boolean equal = false;
 		if (is != null) {
 			try {
