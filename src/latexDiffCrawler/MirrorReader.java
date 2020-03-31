@@ -31,6 +31,10 @@ public class MirrorReader extends Thread {
 		this.table = table;
 	}
 
+	public ArrayList<Mirror> getMirrors(){
+		return mirrors;
+	}
+	
 	public List<String> getFiles() {
 		return files;
 	}

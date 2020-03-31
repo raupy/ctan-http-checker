@@ -29,29 +29,30 @@ public class HTTPDownloadUtility {
 		file = file.replaceAll(">", "%3e");
 		return file.replaceAll("<", "%3c");
 	}
-	
+
 	public static String replaceBlanks(String file) {
 		return file.replaceAll(" ", "%20");
 	}
-	
+
 	public static String replacePercentSign(String file) {
 		return file.replaceAll("%", "%25");
 	}
-	
+
 	public static String replaceNotAllowedCharactersForURL(String file) {
 		file = replacePercentSign(file);
 		file = replaceBracket(file);
 		file = replaceBlanks(file);
 		return file;
 	}
-	
+
 	public static String replaceNotAllowedCharactersForURI(String file) {
 		file = replaceBracket(file);
-		char[] notAllowedCharacters = {':', '*', '?', '"', '|'};
-		for(char c : notAllowedCharacters) {
+		char[] notAllowedCharacters = { ':', '*', '?', '"', '|' };
+		for (char c : notAllowedCharacters) {
 			file = file.replace(c, '%');
 		}
-		if(file.charAt(1) == '%') file = file.replaceFirst("%", ":");
+		if (file.charAt(1) == '%')
+			file = file.replaceFirst("%", ":");
 		return file;
 	}
 
@@ -67,16 +68,15 @@ public class HTTPDownloadUtility {
 			// always check HTTP response code first
 			if (responseCode == HttpURLConnection.HTTP_OK) {
 				inputStream = httpConn.getInputStream();
-			}
-			else {
+			} else {
 				httpConn.disconnect();
-				if(!ASCII_sensitive) return getInputStream(replaceNotAllowedCharactersForURL(fileURL), true);
+				if (!ASCII_sensitive)
+					return getInputStream(replaceNotAllowedCharactersForURL(fileURL), true);
 			}
-		} catch (MalformedURLException e) {
-			e.printStackTrace();
-			if(!ASCII_sensitive) return getInputStream(replaceNotAllowedCharactersForURL(fileURL), true);
 		} catch (IOException e) {
-			e.printStackTrace();
+			if (!ASCII_sensitive)
+				return getInputStream(replaceNotAllowedCharactersForURL(fileURL), true);
+			else e.printStackTrace();
 		}
 		return inputStream;
 	}
@@ -113,16 +113,14 @@ public class HTTPDownloadUtility {
 				didDownload = downloadFile(httpConn, saveFilePath);
 			} else {
 				System.out.println("No file to download. Server replied HTTP code: " + responseCode);
-				if(!ASCII_sensitive) return downloadFile(replaceNotAllowedCharactersForURL(fileURL), saveFilePath, true);
+				if (!ASCII_sensitive)
+					return downloadFile(replaceNotAllowedCharactersForURL(fileURL), saveFilePath, true);
 			}
 			httpConn.disconnect();
-
-		} catch (MalformedURLException e) {
-			e.printStackTrace();
-			if(!ASCII_sensitive) return downloadFile(replaceNotAllowedCharactersForURL(fileURL), saveFilePath, true);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			if (!ASCII_sensitive)
+				return downloadFile(replaceNotAllowedCharactersForURL(fileURL), saveFilePath, true);
+			else e.printStackTrace();
 		}
 		return didDownload;
 	}
@@ -134,7 +132,7 @@ public class HTTPDownloadUtility {
 		try {
 			// opens an output stream to save into file
 			FileOutputStream outputStream = new FileOutputStream(saveFilePath);
-			
+
 			// opens input stream from the HTTP connection
 			InputStream inputStream = httpConn.getInputStream();
 
@@ -149,7 +147,7 @@ public class HTTPDownloadUtility {
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 			return downloadFile(httpConn, replaceNotAllowedCharactersForURI(saveFilePath));
-			
+
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -205,33 +203,34 @@ public class HTTPDownloadUtility {
 		}
 		return pathToMake;
 	}
-	
+
 	public static long getHash(String masterURI, String file) {
 		long masterChecksum = 0;
 		try (InputStream is = Files.newInputStream(Paths.get(masterURI))) {
 			masterChecksum = Adler(is);
 		} catch (AccessDeniedException e) {
-			if(file != null) {
+			if (file != null) {
 				File masterFile = new File(masterURI);
 				String newURI = Constants.MASTER_DIFFICULT_FILES_DIR + "\\" + file;
-				if(masterFile.isDirectory()) newURI = newURI + newURI.charAt(newURI.length() - 1);
+				if (masterFile.isDirectory())
+					newURI = newURI + newURI.charAt(newURI.length() - 1);
 				return tryAgain(file, newURI);
-			}
-			else e.printStackTrace();
+			} else
+				e.printStackTrace();
 		} catch (InvalidPathException e) {
 			if (file != null) {
 				String newURI = Constants.MASTER_DIFFICULT_FILES_DIR + "\\" + file;
 				newURI = replaceNotAllowedCharactersForURI(newURI);
 				return tryAgain(file, newURI);
-			}
-			else e.printStackTrace();
+			} else
+				e.printStackTrace();
 		} catch (NoSuchFileException e) {
 			if (file != null && masterURI.endsWith(".")) {
 				String newURI = Constants.MASTER_DIFFICULT_FILES_DIR + "\\" + file;
 				newURI = (String) newURI.subSequence(0, newURI.length() - 1);
 				return tryAgain(file, newURI);
-			}
-			else e.printStackTrace();
+			} else
+				e.printStackTrace();
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -240,12 +239,13 @@ public class HTTPDownloadUtility {
 	}
 
 	private static long tryAgain(String file, String newURI) {
-		if(!Main.difficultFiles.contains(file)) Main.difficultFiles.add(file);
+		if (!Main.difficultFiles.contains(file))
+			Main.difficultFiles.add(file);
 		makeDir(newURI, file);
 		downloadFile(Constants.DANTE + file, newURI, false);
 		return getHash(newURI, file);
 	}
-	
+
 	public static boolean compareHashesForLocalFiles(String masterUri, String mirrorUri) {
 		long masterChecksum = getHash(masterUri, null);
 		long mirrorChecksum = getHash(mirrorUri, null);

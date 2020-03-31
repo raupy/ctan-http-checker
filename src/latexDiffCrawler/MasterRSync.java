@@ -26,7 +26,7 @@ public class MasterRSync {
 			LocalDateTime now = LocalDateTime.now();
 			int nowHour = now.getHour();
 			int nowMin = now.getMinute();
-			int hourLastUpdateRealTime = lastUpdate.getHour() + 1;
+			int hourLastUpdateRealTime = lastUpdate.getHour() - Main.offset;
 			if (hourLastUpdateRealTime != nowHour) {
 				if (hourLastUpdateRealTime + 1 == nowHour && nowMin <= 2) {
 					int sleepTime = 2 - nowMin;

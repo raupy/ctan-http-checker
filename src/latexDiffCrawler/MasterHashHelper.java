@@ -27,6 +27,7 @@ public class MasterHashHelper {
 	boolean removeObsolete;
 	private Mirror Dante;
 	public static String fontsGreekKdInstall = "fonts/greek/kd/INSTALL";
+	boolean fontsGreekKdInstall_workAround = false;
 	boolean didLoad = false;
 
 	/*
@@ -64,7 +65,8 @@ public class MasterHashHelper {
 			String fileURI = line.substring(line.lastIndexOf(" ") + 1, line.length());
 			if(line.contains("*deleting")) {
 				map.remove(fileURI);
-				files.remove(fileURI);
+				if(!fileURI.contains(MasterHashHelper.fontsGreekKdInstall.toLowerCase())) files.remove(fileURI);
+				else if(!this.fontsGreekKdInstall_workAround) files.remove(fileURI);
 			}
 			else {
 				if (removeObsolete) {
@@ -104,8 +106,7 @@ public class MasterHashHelper {
 						if (inputLine.contains(">f") || inputLine.contains("*deleting"))
 							files.add(inputLine);
 						else if(inputLine.contains("fonts/greek/kd/INSTALL\" is a directory")) {
-//							HTTPDownloadUtility.downloadFile(Dante.getUrl() + fontsGreekKdInstall,
-//									Constants.MASTER_DIR + "\\" + workAround);
+							this.fontsGreekKdInstall_workAround = true;
 							long masterChecksum = HTTPDownloadUtility.getHash(Constants.MASTER_DIR + "\\" + fontsGreekKdInstall, fontsGreekKdInstall);
 							map.put(fontsGreekKdInstall, masterChecksum);
 						}
