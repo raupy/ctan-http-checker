@@ -1,12 +1,16 @@
 package latexDiffCrawler;
 
 import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
@@ -20,19 +24,51 @@ public class Main {
 	static ArrayList<Mirror> mirrors;
 	static ArrayList<Mirror> equalTSmirrors;
 	static List<String> difficultFiles = new ArrayList<String>();
+	static int offset = -1;
 
 	// initializes the list of http / https CTAN Mirrors
-	public static ArrayList<Mirror> init() {
-		ArrayList<String> ctanMirrors = null;
+//	public static ArrayList<Mirror> init() {
+//		ArrayList<String> ctanMirrors = null;
+//		ArrayList<Mirror> mirrors = null;
+//		try {
+//			ctanMirrors = TimestampUpdateChecker.initCtanArray(Constants.fileWithCtanMirrors);
+//		} catch (IOException e) {
+//			e.printStackTrace();
+//		}
+//		if (ctanMirrors != null && ctanMirrors.size() > 0) {
+//			mirrorsToCheck = ctanMirrors;
+//			mirrors = updateMirrorList();
+//		}
+//		return mirrors;
+//	}
+
+	public static ArrayList<String> readWholeFile(String fileWihMirrorData) throws IOException {
+		ArrayList<String> mirrorsData = new ArrayList<String>();
+		BufferedReader in = new BufferedReader(new FileReader(fileWihMirrorData));
+		String inputLine = "";
+		while ((inputLine = in.readLine()) != null)
+			mirrorsData.add(inputLine);
+		in.close();
+		return mirrorsData;
+	}
+
+	static ArrayList<Mirror> init() {
+		ArrayList<String> mirrorData = null;
 		ArrayList<Mirror> mirrors = null;
 		try {
-			ctanMirrors = TimestampUpdateChecker.initCtanArray(Constants.fileWithCtanMirrors);
+			mirrorData = readWholeFile(Constants.mirrorData);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		if (ctanMirrors != null && ctanMirrors.size() > 0) {
-			mirrorsToCheck = ctanMirrors;
-			mirrors = updateMirrorList();
+		if (mirrorData != null && mirrorData.size() > 0) {
+			mirrors = new ArrayList<Mirror>();
+			for (String md : mirrorData) {
+				String[] data = md.split(" ,,, ");
+				Mirror mi = new Mirror(data[0]);
+				mi.setTimeStampInfos(data[1], data[2], data[3]);
+				mirrors.add(mi);
+			}
+
 		}
 		return mirrors;
 	}
@@ -85,6 +121,20 @@ public class Main {
 		}
 	}
 
+	public static void sleepUntilLocalDateTime(LocalDateTime ldt) {
+		LocalDateTime now = LocalDateTime.now();
+		long millisToSleep = now.until(ldt, ChronoUnit.MILLIS);
+		long minutesToSleep = millisToSleep / 60000;
+		try {
+			System.out.println("I am waiting now " + minutesToSleep + " minutes until " + ldt.toString()
+			+ ". Then the CTAN mirror with the highest priority and the latest update should have a timestamp that is equal to the current Master timestamp");
+			Thread.sleep(millisToSleep);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
 	public static List<MirrorReader> createReaders(List<String> files, int size, int divisor) {
 		int quot = size / divisor;
 		List<MirrorReader> readers = new ArrayList<MirrorReader>();
@@ -103,16 +153,16 @@ public class Main {
 	}
 
 	public static ArrayList<Mirror> findEqualTimeStampMirrors() {
-		ArrayList<Mirror> equalTSMirrors = new ArrayList<Mirror>();
-		for (Mirror mirror : mirrors) {
+		ArrayList<Mirror> list = new ArrayList<Mirror>();
+		for (Mirror mirror : equalTSmirrors) {
 			if (MirrorReader.compareTimeStamps(mirror)) {
 				System.out.println(mirror.getName() + " has equal timestamp");
-				equalTSMirrors.add(mirror);
+				list.add(mirror);
 			} else {
 				System.out.println(mirror.getName() + " has other timestamp: " + mirror.getTimestamp());
 			}
 		}
-		return equalTSMirrors;
+		return list;
 	}
 
 	private static void startReading() {
@@ -125,20 +175,107 @@ public class Main {
 			reader.start();
 		}
 		int checkedFiles = 0;
-		while (checkedFiles <= size && ((float) checkedFiles / size) < 1) {
+		System.out.println("Comparing process is starting now. This is going to take between 30 - 60 minutes for one mirror.");
+		while (checkedFiles <= size && ((float) checkedFiles / size) < 0.995) {
 			checkedFiles = 0;
 			for (MirrorReader reader : readers) {
 				checkedFiles += reader.getCheckedFiles();
 			}
 			System.out.println(checkedFiles + " are checked = " + ((float) checkedFiles / size) * 100 + " %.");
 			try {
-				Thread.sleep(60000);
+				Thread.sleep(300000);
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
-		mirrors.removeAll(equalTSmirrors);
+		for(Mirror mirror : readers.get(0).getMirrors())
+			mirrors.remove(mirror);
+	}
+
+	public static ArrayList<Mirror> getEqualTSMirrorsAndWait(){
+		int hourOfMasterTS = Main.hourOfMasterTimeStamp();
+		ArrayList<Mirror> list = magicController(hourOfMasterTS);
+		for(Mirror mirror : list)
+			System.out.println("Mirror " + mirror.getName());
+		waitForLatestMirror(list, hourOfMasterTS);
+		return list;
+	}
+	
+	public static int hourOfMasterTimeStamp() {
+		LocalDateTime masterTS = MirrorReader.getMasterTimeStamp();
+		int hourOfTS = -1;
+		if(masterTS != null) {
+			LocalTime now = LocalTime.now();
+			if(now.getMinute() < 2) 
+				now = now.minusHours(1);
+			hourOfTS = masterTS.getHour();
+			int newOffset = hourOfTS - now.getHour();
+			if(newOffset != offset) {
+				for(Mirror mirror : mirrors) {
+					mirror.notifyOffsetChanged(offset, newOffset);
+				}
+				offset = newOffset;
+			}
+		}
+		return hourOfTS;
+	}
+
+	public static ArrayList<Mirror> magicController(int hourOfTS) {
+		ArrayList<Mirror> list = new ArrayList<Mirror>();
+		int biggestPrio = 1;
+		for (Mirror mirror : mirrors) {
+			if (mirror.getTimeStampAtIndex().get(hourOfTS) > 0) {
+				int mirrorPrio = mirror.getPrio();
+				if (mirrorPrio >= biggestPrio) {
+					list.add(mirror);
+					biggestPrio = mirrorPrio;
+				}
+			}
+		}
+		if (!list.isEmpty()) {
+			if (biggestPrio == 1) {
+				Mirror save = list.get(0);
+				list.removeAll(list);
+				list.add(save);
+			} else {
+				List<Mirror> removeThese = new ArrayList<Mirror>();
+				for (Mirror mirror : list) {
+					if (mirror.getPrio() < biggestPrio)
+						removeThese.add(mirror);
+				}
+				for(Mirror mirror : removeThese)
+					list.remove(mirror);
+			}
+		}
+		return list;
+	}
+
+	public static void waitForLatestMirror(ArrayList<Mirror> list, int hourOfMasterTS) {
+		if(list == null) {
+			Main.sleepUntilXX03();
+		}
+		else {
+			LocalTime time = LocalTime.now();
+			LocalDate today = LocalDate.now();
+			LocalDate tomorrow = today.plusDays(1);
+			LocalDateTime x = LocalDateTime.of(today, time);
+			for(Mirror mirror : list) {
+				mirror.setTimestamp();
+				if(!MirrorReader.compareTimeStamps(mirror)) {
+					LocalTime mirrorUpdate = mirror.getTimeStampRealTimeRelation().get(hourOfMasterTS);
+					LocalDateTime y;
+					if(mirrorUpdate.isBefore(time)) {
+						y = LocalDateTime.of(tomorrow, mirrorUpdate);
+					}
+					else {
+						y = LocalDateTime.of(today, mirrorUpdate);
+					}
+					if(y.isAfter(x) && LocalDateTime.now().until(y, ChronoUnit.MINUTES) < 200) x = y;
+				}
+			}
+			if(x.isAfter(LocalDateTime.of(today, time))) Main.sleepUntilLocalDateTime(x.plusMinutes(10));
+		}
+			
 	}
 
 	// skip crawling and go through
@@ -151,20 +288,22 @@ public class Main {
 		mirrors = init();
 		loadDifficultFiles();
 		MasterRSync mrs = new MasterRSync();
+		
 		while (mirrors != null && !mirrors.isEmpty()) {
-			mrs.download();
+//			mrs.download();
 			msh = mrs.getMasterHashHelper();
+			equalTSmirrors = Main.getEqualTSMirrorsAndWait();
 			equalTSmirrors = Main.findEqualTimeStampMirrors();
 			if (equalTSmirrors.isEmpty()) {
 				sleepUntilXX03();
 				continue;
 			}
-			int maxMirrors = 1;
-			if (equalTSmirrors.size() > maxMirrors) {
-				ArrayList<Mirror> checkOnlyTheseMirrors = new ArrayList<Mirror>();
-				checkOnlyTheseMirrors.add(equalTSmirrors.get(maxMirrors - 1));
-				equalTSmirrors = checkOnlyTheseMirrors;
-			}
+//			int maxMirrors = 1;
+//			if (equalTSmirrors.size() > maxMirrors) {
+//				ArrayList<Mirror> checkOnlyTheseMirrors = new ArrayList<Mirror>();
+//				checkOnlyTheseMirrors.add(equalTSmirrors.get(maxMirrors - 1));
+//				equalTSmirrors = checkOnlyTheseMirrors;
+//			}
 			startReading();
 		}
 
