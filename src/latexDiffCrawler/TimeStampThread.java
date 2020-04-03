@@ -1,59 +1,46 @@
 package latexDiffCrawler;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
+/*
+ * This class implements a thread that looks for a changing time stamp for a specific @mirror
+ * or if the mirror is currently offline. In both cases the thread informs every @MirrorReader
+ * that is reading from the specific @mirror.
+ * It terminates when one of the cases above is true or if it its exit()-method is called.
+ */
 public class TimeStampThread extends Thread {
 
 	private Mirror mirror;
 	private List<MirrorReader> mirrorReaders;
 	private boolean exit = false;
-	
+
 	public TimeStampThread(Mirror mirror, List<MirrorReader> mirrorReaders) {
-		setMirror(mirror);
-		setMirrorThread(mirrorReaders);
-	}
-	
-	public void setMirror(Mirror mirror) {
 		this.mirror = mirror;
-	}
-	
-	public void setMirrorThread(List<MirrorReader> mirrorReaders) {
 		this.mirrorReaders = mirrorReaders;
 	}
-	
-    public void run(){
-       while(!exit) {
-    	   if(mirror.setTimestamp()) {
-    		   for(MirrorReader reader : mirrorReaders) {
-    			   reader.removeMirror(mirror);
-    		   }
-    	   }
-    	   sleepUntilNextTimeStamp();
-       }
-    }
-    
-    public void exit() {
-    	exit = true;
-    }
-    
-    public void sleepUntilNextTimeStamp() {
-		LocalDateTime now = LocalDateTime.now();
-		int mi = now.getMinute();
-		int sleepTime = 0;
-		if (mi <= 2) {
-			sleepTime = 3 - mi;
-		} else {
-			sleepTime = 60 - mi + 3;
+
+	public void run() {
+		while (!exit) {
+			sleepMinutes(10);
+			if (mirror.setTimestamp()) {
+				for (MirrorReader reader : mirrorReaders) {
+					reader.removeMirror(mirror);
+				}
+				exit = true;
+			}
 		}
+	}
+
+	public void exit() {
+		exit = true;
+	}
+
+	public void sleepMinutes(int minutes) {
 		try {
-			System.out.println(this.getClass() + " for Mirror " + mirror.getName() + " now sleepy for " + sleepTime + " minutes until " + now.plusMinutes(sleepTime).toString());
-			Thread.sleep(sleepTime * 60 * 1000); // sleep sleepTime in milliseconds
-			System.out.println(this.getClass() + " for Mirror " + mirror.getName() + " woke up at " + LocalDateTime.now().toString());
+			Thread.sleep(60 * 1000 * minutes); // sleep sixty seconds * minutes
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
 	}
-    
-    
-  }
+
+}

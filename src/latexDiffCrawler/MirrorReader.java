@@ -13,17 +13,23 @@ import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
 
+/*
+ * This class implements the whole comparing functionality and compares all 
+ * the files that are listed in the @files list. 
+ * It is implemented as a thread so that the comparing process can be parallel.
+ * When a MirrorReader thread has finished all his files, it tries to find another
+ * MirrorReader thread that still is comparing and helps this thread.  
+ */
 public class MirrorReader extends Thread {
 
 	private ArrayList<Mirror> mirrors;
 	Hashtable<String, Long> table;
 	private List<String> files;
-	private List<String> checkedFilesList = new ArrayList<String>();
+	private int checkedFiles = 0;
+
+	// attributes to work with other MirrorReaders
 	private int checkedFilesForCurrentList = 0;
-	private int checkedFiles;
-	public boolean exit = false;
 	private List<MirrorReader> mirrorReaders;
-	public boolean waitingToHelp;
 
 	public MirrorReader(ArrayList<Mirror> mirrors, List<String> files, Hashtable<String, Long> table) {
 		this.mirrors = mirrors;
@@ -31,10 +37,19 @@ public class MirrorReader extends Thread {
 		this.table = table;
 	}
 
-	public ArrayList<Mirror> getMirrors(){
+	// returns the @mirror from the @mirrors list that has the same name as in @name
+	public Mirror getMirrorByName(String name) {
+		for (Mirror mirror : mirrors) {
+			if (mirror.getName().equals(name))
+				return mirror;
+		}
+		return null;
+	}
+
+	public ArrayList<Mirror> getMirrors() {
 		return mirrors;
 	}
-	
+
 	public List<String> getFiles() {
 		return files;
 	}
@@ -51,56 +66,79 @@ public class MirrorReader extends Thread {
 		this.mirrorReaders = readers;
 	}
 
-	public static String getFileName(String uri) {
-		if (uri.contains("/"))
-			return uri.substring(uri.lastIndexOf("/") + 1, uri.length());
-		else
-			return uri;
+	public void run() {
+		compareFiles();
 	}
 
-	public static String makeDir(Mirror mirror, String file) {
-		String mirrorFilePath = mirror.getDirectory() + "\\" + file;
-		String pathToMake = "";
-		if (file.contains("/")) {
-			pathToMake = mirrorFilePath.substring(0, mirrorFilePath.lastIndexOf("/"));
-			new File(pathToMake).mkdirs();
-		}
-		return pathToMake;
-	}
-
-	public static LocalDateTime getMasterTimeStamp() {
-		InputStream is;
-		try {
-			is = Files.newInputStream(Paths.get(Constants.MASTER_DIR + "\\timestamp"));
-			BufferedReader in = null;
-			if (is != null) {
-				in = new BufferedReader(new InputStreamReader(is));
-				String inputLine = "";
-				String timestamp = "";
-				if (in != null) {
-					while ((inputLine = in.readLine()) != null)
-						timestamp = inputLine;
-				}
-				return Mirror.localDateTimeParser(timestamp);
+	/*
+	 * Iterates through its @files list and compares every file with the
+	 * corresponding master file. After that it compares some single files from
+	 * the @compareAgain list again if there was some trouble comparing them before.
+	 * After that it helps another thread that isn't finished yet.
+	 */
+	public void compareFiles() {
+		checkedFilesForCurrentList = 0;
+		if (files != null) {
+			List<String> compareAgain = new ArrayList<String>();
+			for (int i = 0; i < files.size(); i++) {
+				String file = files.get(i);
+				compareSpecificFile(file, compareAgain);
+				checkedFiles++;
+				checkedFilesForCurrentList++;
 			}
-		} catch (IOException e) {
-			e.printStackTrace();
+			if (!compareAgain.isEmpty())
+				compareFilesAgain(compareAgain);
 		}
-		return null;
+		helpOtherThread();
 	}
 
-	public static boolean compareTimeStamps(Mirror mirror) {
-		boolean equalTimeStamps = false;
-		mirror.setTimestamp();
-		LocalDateTime mirrorTimestamp = mirror.getTimestamp();
-		if (mirrorTimestamp != null) {
-			LocalDateTime masterTimestamp = getMasterTimeStamp();
-			if (masterTimestamp != null)
-				equalTimeStamps = mirrorTimestamp.equals(masterTimestamp);
+	/*
+	 * Reads the @masterChecksum for a specific @file and compares it with the
+	 * corresponding files that are uploaded at the @mirrors. Adds the @file,
+	 * the @mirror and the @masterChecksum to the @compareAgain list if there was
+	 * some trouble comparing them.
+	 */
+	public void compareSpecificFile(String file, List<String> compareAgain) {
+		long masterChecksum = 0;
+		if (table.get(file) != null)
+			masterChecksum = table.get(file);
+		for (Mirror mirror : mirrors) {
+			if (!compareSpecificFileForSpecificMirror(file, mirror, masterChecksum))
+				compareAgain.add(mirror.getName() + " ,,, " + file + " ,,, " + masterChecksum);
 		}
-		return equalTimeStamps;
 	}
 
+	/*
+	 * Compares the @file that is uploaded at the specific @mirror with
+	 * the @masterChecksum. If they are not equal it tries to download it. If the
+	 * download was successful it copies the file from the master directory to the
+	 * mirror directory. Otherwise the files have to be compared later again.
+	 * Returns true if the files don't have to be compared again.
+	 */
+	public boolean compareSpecificFileForSpecificMirror(String file, Mirror mirror, long masterChecksum) {
+		boolean compareNotAgain = HTTPDownloadUtility.filesAreEqual(file, mirror, masterChecksum);
+		if (!compareNotAgain) {
+			String saveDir = MirrorReader.makeDir(mirror, file);
+			boolean didDownload = HTTPDownloadUtility.downloadFile(mirror.getUrl() + file,
+					mirror.getDirectory() + "\\" + file, false);
+			if (didDownload) {
+				// Copy the master File
+				compareNotAgain = true;
+				String fileName = MirrorReader.getFileName(file);
+				copyFile(fileName, file, saveDir);
+			}
+		}
+		return compareNotAgain;
+	}
+	
+	/*
+	 * A bit ugly method that normally just has to copy the @file from the master
+	 * directory to the @saveDir directory. The problem is, that it has to cope with
+	 * some very ugly called files that contain e.g. characters like a ':' or a '.'
+	 * in the end. These files are listed in the difficultFiles.txt file and saved
+	 * in a seperate special directory. The whole part after the IOException line
+	 * deals with those special files.
+	 */
 	private void copyFile(String fileName, String file, String saveDir) {
 		int end_index = fileName.lastIndexOf('.');
 		String fileType = "";
@@ -110,9 +148,6 @@ public class MirrorReader extends Thread {
 			fileType = fileName.substring(fileName.lastIndexOf('.'), fileName.length());
 		File dest = new File(saveDir + "/" + fileName.substring(0, end_index) + "_master" + fileType);
 		String source = Constants.MASTER_DIR + "\\" + file;
-//		} else if (file.equals(MasterHashHelper.fontsGreekKdInstall)) {
-//			source = Constants.MASTER_DIR + "\\" + file;
-//		}
 		try {
 			Files.copy(Paths.get(source), dest.toPath(), StandardCopyOption.REPLACE_EXISTING);
 		} catch (IOException e) {
@@ -140,37 +175,92 @@ public class MirrorReader extends Thread {
 		}
 	}
 
-	public void compareFiles() {
-		checkedFilesForCurrentList = 0;
-		if (files != null) {
-//			if (Main.compareFILES_byname(mirror)) {
-			for (int i = 0; i < files.size(); i++) {
-				String file = files.get(i);
-				long masterChecksum = 0;
-				if (table.get(file) != null)
-					masterChecksum = table.get(file);
-				for (Mirror mirror : mirrors) {
-					if (!HTTPDownloadUtility.filesAreEqual(file, mirror, masterChecksum)) {
-						String saveDir = MirrorReader.makeDir(mirror, file);
-						boolean didDownload = HTTPDownloadUtility.downloadFile(mirror.getUrl() + file,
-								mirror.getDirectory() + "\\" + file, false);
-						if (!didDownload)
-							// TODO: files.add(file);
-							System.out.println(file + " has to be downloaded again");
-						else { // Copy the master File
-							String fileName = MirrorReader.getFileName(file);
-							copyFile(fileName, file, saveDir);
-						}
-					}
-				}
-				checkedFiles++;
-				checkedFilesForCurrentList++;
+	/*
+	 * Compares the files that caused earlier some trouble again. Doesn't do
+	 * anything if there is again trouble, just moves on to the next file.
+	 */
+	public void compareFilesAgain(List<String> compareAgain) {
+		for (String s : compareAgain) {
+			String[] split = s.split(" ,,, ");
+			Mirror mirror = this.getMirrorByName(split[0]);
+			if (mirror != null) {
+				compareSpecificFileForSpecificMirror(split[1], mirror, Long.parseLong(split[2]));
 			}
 		}
-		checkedFilesList.addAll(files);
-		helpOtherMirror();
+	}
+	
+	/*
+	 * Returns the last part of an @uri, i.e. the name of the file that is uploaded
+	 * there.
+	 */
+	public static String getFileName(String uri) {
+		if (uri.contains("/"))
+			return uri.substring(uri.lastIndexOf("/") + 1, uri.length());
+		else
+			return uri;
 	}
 
+	/*
+	 * Makes a directory for the specific @file in the @mirror directory. Returns
+	 * the path to this directory.
+	 */
+	public static String makeDir(Mirror mirror, String file) {
+		String mirrorFilePath = mirror.getDirectory() + "\\" + file;
+		String pathToMake = "";
+		if (file.contains("/")) {
+			pathToMake = mirrorFilePath.substring(0, mirrorFilePath.lastIndexOf("/"));
+			new File(pathToMake).mkdirs();
+		}
+		return pathToMake;
+	}
+
+	/*
+	 * Returns the current local master time stamp from the timestamp file or null
+	 * if there was an IOException.
+	 */
+	public static LocalDateTime getMasterTimeStamp() {
+		InputStream is;
+		try {
+			is = Files.newInputStream(Paths.get(Constants.MASTER_DIR + "\\timestamp"));
+			BufferedReader in = null;
+			if (is != null) {
+				in = new BufferedReader(new InputStreamReader(is));
+				String inputLine = "";
+				String timestamp = "";
+				if (in != null) {
+					while ((inputLine = in.readLine()) != null)
+						timestamp = inputLine;
+				}
+				return Mirror.localDateTimeParser(timestamp);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+
+	/*
+	 * Returns true if the @mirror's and the master's time stamps are equal, false
+	 * if otherwise.
+	 */
+	public static boolean compareTimeStamps(Mirror mirror) {
+		boolean equalTimeStamps = false;
+		mirror.setTimestamp();
+		LocalDateTime mirrorTimestamp = mirror.getTimestamp();
+		if (mirrorTimestamp != null) {
+			LocalDateTime masterTimestamp = getMasterTimeStamp();
+			if (masterTimestamp != null)
+				equalTimeStamps = mirrorTimestamp.equals(masterTimestamp);
+		}
+		return equalTimeStamps;
+	}
+
+
+	/*
+	 * Is called from another MirrorReader that is already finished and wants to
+	 * help this instance. Divides the @files list in two equally big sublists and
+	 * returns the sublist for the helping MirrorReader.
+	 */
 	public List<String> getHelp() {
 		int index = (files.size() - checkedFilesForCurrentList) / 2;
 		List<String> subFilesList = null;
@@ -179,7 +269,13 @@ public class MirrorReader extends Thread {
 		return subFilesList;
 	}
 
-	private void helpOtherMirror() {
+	/*
+	 * Looks for the MirrorReader that has currently the most files left that have
+	 * to be compared. Tries then to help. If this didn't work, it sleeps 30 seconds
+	 * and starts looking again. If no one needs help anymore, the method returns
+	 * and the MirrorReader thread is terminated.
+	 */
+	private void helpOtherThread() {
 		MirrorReader needsHelpReader = null;
 		int i = 2;
 		for (MirrorReader reader : mirrorReaders) {
@@ -187,42 +283,30 @@ public class MirrorReader extends Thread {
 			if (stillTocheck >= i && !reader.equals(this)) {
 				i = stillTocheck;
 				needsHelpReader = reader;
-//				System.out.println(needsHelpReader.toString() + " has still " + i + " elements"  );
 			}
 
 		}
 		if (needsHelpReader != null) {
-//			String oldStart = files.get(0);
-//			int oldSize = files.size();
 			List<String> subFiles = needsHelpReader.getHelp();
 			if (subFiles != null) {
 				files = subFiles;
-//				System.out.println("\n I finished my List with" + oldSize + "elements, starting with " + oldStart);
-//				System.out.println("Now I am helping at " + files.get(0) + "\n");
-//				System.out.println("My list has now " + files.size() + " elements.");
 				compareFiles();
 			} else {
-
 				try {
 					Thread.sleep(30000);
 				} catch (InterruptedException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
-				helpOtherMirror();
+				helpOtherThread();
 			}
 		}
 	}
 
-	public List<String> checkedFiles() {
-		return this.checkedFilesList;
-	}
-
-	public void run() {
-		compareFiles();
-	}
-
+	// removes a @mirror from the @mirrors list
+	// is called from the TimeStampThread that looks for updates for the specific
+	// @mirror
 	public void removeMirror(Mirror mirror) {
-		// TODO Auto-generated method stub
+		mirrors.removeIf(m -> m.equals(mirror));
 	}
 }
