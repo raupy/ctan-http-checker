@@ -2,15 +2,13 @@ package latexDiffCrawler;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Hashtable;
@@ -46,7 +44,7 @@ public class MasterHashHelper {
 	 * from this file and then it will be updated; otherwise it will be initialized
 	 */
 	public void loadOrInitMap() {
-		if(!didLoad) didLoad = loadMap();
+		if(!didLoad && (new File(Constants.MASTER_DIFFICULT_FILES_DIR)).exists()) didLoad = loadMap();
 		if (didLoad)
 			updateMap();
 		// no master hash file
@@ -76,8 +74,6 @@ public class MasterHashHelper {
 					computeHashAndAddToMap(fileURI);
 			}
 		}
-		System.out.println(map.size());
-		System.out.println(files.size());
 		saveHashes();
 	}
 
@@ -93,6 +89,13 @@ public class MasterHashHelper {
 		saveHashes();
 	}
 
+	/*
+	 * Returns a list with all the lines from the rsync log file that describe either
+	 * a change in a existing file or a new file or deleting of a file.
+	 * Note: fonts/greek/kd/INSTALL is not a directory but fonts/greek/kd/install is.
+	 * The file system doesn't allow to save fonts/greek/kd/INSTALL in the same directory,
+	 * so it's part of the difficultFiles.txt and has to be saved somewhere else.
+	 */
 	private List<String> getUpdatedFilesFromLogFile() {
 		InputStream is = null;
 		List<String> files = new ArrayList<String>();
@@ -114,7 +117,6 @@ public class MasterHashHelper {
 				}
 			}
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		return files;
@@ -139,7 +141,7 @@ public class MasterHashHelper {
 
 
 	/*
-	 * tries to read the MASTER_HASHES file and loads the @map returns true if
+	 * tries to read the MASTER_HASHES file and loads the @map; returns true if
 	 * loading was successful
 	 */
 	public boolean loadMap() {
@@ -177,7 +179,6 @@ public class MasterHashHelper {
 			}
 			writer.close();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
@@ -190,7 +191,6 @@ public class MasterHashHelper {
 			}
 			writer.close();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
