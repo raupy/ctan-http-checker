@@ -13,6 +13,8 @@ import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
 
+
+
 /*
  * This class implements the whole comparing functionality and compares all 
  * the files that are listed in the @files list. 
@@ -26,10 +28,13 @@ public class MirrorReader extends Thread {
 	Hashtable<String, Long> table;
 	private List<String> files;
 	private int checkedFiles = 0;
+	private List<Mirror> outOfSyncMirrors = new ArrayList<Mirror>();
+	private boolean exit;
 
 	// attributes to work with other MirrorReaders
 	private int checkedFilesForCurrentList = 0;
 	private List<MirrorReader> mirrorReaders;
+	
 
 	public MirrorReader(ArrayList<Mirror> mirrors, List<String> files, Hashtable<String, Long> table) {
 		this.mirrors = mirrors;
@@ -65,6 +70,10 @@ public class MirrorReader extends Thread {
 	public void setMirrorReaders(List<MirrorReader> readers) {
 		this.mirrorReaders = readers;
 	}
+	
+	public List<Mirror> getOutOfSyncMirrors(){
+		return outOfSyncMirrors;
+	}
 
 	public void run() {
 		compareFiles();
@@ -80,7 +89,7 @@ public class MirrorReader extends Thread {
 		checkedFilesForCurrentList = 0;
 		if (files != null) {
 			List<String> compareAgain = new ArrayList<String>();
-			for (int i = 0; i < files.size(); i++) {
+			for (int i = 0; i < files.size() && !exit; i++) {
 				String file = files.get(i);
 				compareSpecificFile(file, compareAgain);
 				checkedFiles++;
@@ -89,7 +98,7 @@ public class MirrorReader extends Thread {
 			if (!compareAgain.isEmpty())
 				compareFilesAgain(compareAgain);
 		}
-		helpOtherThread();
+		if(!exit) helpOtherThread();
 	}
 
 	/*
@@ -102,7 +111,9 @@ public class MirrorReader extends Thread {
 		long masterChecksum = 0;
 		if (table.get(file) != null)
 			masterChecksum = table.get(file);
-		for (Mirror mirror : mirrors) {
+		for (int i = 0; i < mirrors.size(); i++) {
+			Mirror mirror = mirrors.get(i);
+			if(outOfSyncMirrors.contains(mirror)) continue;
 			if (!compareSpecificFileForSpecificMirror(file, mirror, masterChecksum))
 				compareAgain.add(mirror.getName() + " ,,, " + file + " ,,, " + masterChecksum);
 		}
@@ -116,17 +127,21 @@ public class MirrorReader extends Thread {
 	 * Returns true if the files don't have to be compared again.
 	 */
 	public boolean compareSpecificFileForSpecificMirror(String file, Mirror mirror, long masterChecksum) {
-		boolean compareNotAgain = HTTPDownloadUtility.filesAreEqual(file, mirror, masterChecksum);
+		boolean compareNotAgain = HTTPDownloadUtility.filesAreEqual(file, mirror, masterChecksum, true);
 		if (!compareNotAgain) {
-			String saveDir = MirrorReader.makeDir(mirror, file);
-			boolean didDownload = HTTPDownloadUtility.downloadFile(mirror.getUrl() + file,
-					mirror.getDirectory() + "\\" + file, false);
-			if (didDownload) {
-				// Copy the master File
-				compareNotAgain = true;
-				String fileName = MirrorReader.getFileName(file);
-				copyFile(fileName, file, saveDir);
+			compareNotAgain = HTTPDownloadUtility.filesAreEqual(file, mirror, masterChecksum, false);
+			if(!compareNotAgain) {
+				String saveDir = MirrorReader.makeDir(mirror, file);
+				boolean didDownload = HTTPDownloadUtility.downloadFile(mirror.getUrl() + file,
+						mirror.getDirectory() + "\\" + file, false);
+				if (didDownload) {
+					// Copy the master File
+					compareNotAgain = true;
+					String fileName = MirrorReader.getFileName(file);
+					copyFile(fileName, file, saveDir);
+				}
 			}
+			
 		}
 		return compareNotAgain;
 	}
@@ -278,8 +293,11 @@ public class MirrorReader extends Thread {
 	private void helpOtherThread() {
 		MirrorReader needsHelpReader = null;
 		int i = 2;
-		for (MirrorReader reader : mirrorReaders) {
-			int stillTocheck = reader.getFiles().size() - reader.getCheckedFilesForCurrentList();
+		for (int j = 0; j < mirrorReaders.size(); j++) {
+			MirrorReader reader = mirrorReaders.get(j);
+			int stillTocheck = 0;
+			if(reader.getFiles() != null)
+				stillTocheck = reader.getFiles().size() - reader.getCheckedFilesForCurrentList();
 			if (stillTocheck >= i && !reader.equals(this)) {
 				i = stillTocheck;
 				needsHelpReader = reader;
@@ -307,6 +325,9 @@ public class MirrorReader extends Thread {
 	// is called from the TimeStampThread that looks for updates for the specific
 	// @mirror
 	public void removeMirror(Mirror mirror) {
-		mirrors.removeIf(m -> m.equals(mirror));
+		outOfSyncMirrors.add(mirror);
+		if(outOfSyncMirrors.size() == mirrors.size()) {
+			exit = true;
+		}
 	}
 }

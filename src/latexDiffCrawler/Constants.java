@@ -10,6 +10,7 @@ public class Constants {
 	public static String ROOT_DIR = "C:\\Users\\Lilli\\git\\ctan_checker_http\\src\\";
 	public static String mirrorData = ROOT_DIR + "mirrorData.txt";
 	public static String DIFFICULT_FILES = ROOT_DIR + "difficultFiles.txt";
+	public static String BLACKLIST = ROOT_DIR + "blacklist.txt";
 	public static String MASTER_HASHES = ROOT_DIR + "masterHashes.txt";
 	public static String fileWithCtanMirrors = ROOT_DIR + "CtanMirrors.txt";
 

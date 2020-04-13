@@ -67,13 +67,22 @@ public class MasterHashHelper {
 				else if(!this.fontsGreekKdInstall_workAround) files.remove(fileURI);
 			}
 			else {
+				files.remove(fileURI);
 				if (removeObsolete) {
-					if (!fileURI.startsWith("obsolete/"))
+					if (!fileURI.startsWith("obsolete/")) {
 						computeHashAndAddToMap(fileURI);
-				} else
+						files.add(fileURI);
+					}
+						
+				} else {
 					computeHashAndAddToMap(fileURI);
+					files.add(fileURI);
+				}
+					
 			}
 		}
+		System.out.println(files.size());
+		System.out.println(map.size());
 		saveHashes();
 	}
 

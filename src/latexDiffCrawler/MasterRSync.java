@@ -26,7 +26,7 @@ public class MasterRSync {
 	 * Returns true if the local and the online time stamps of the Dante server are
 	 * different, so that the local repo should be synchronized.
 	 */
-	private boolean shouldSync(LocalDateTime lastUpdate) {
+	public boolean shouldSync(LocalDateTime lastUpdate) {
 		boolean shouldSync = true;
 		if (lastUpdate != null) {
 			LocalDateTime now = LocalDateTime.now();

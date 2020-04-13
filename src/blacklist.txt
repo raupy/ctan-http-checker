@@ -1,0 +1,11 @@
+mirror.marwan.ma
+mirror.koddos.net
+mirrors.tuna.tsinghua.edu.cn
+mirror.aarnet.edu.au
+ctan.ijs.si
+packages.hs-regensburg.de
+ctan.tetaneutral.net
+mirror.szerverem.hu
+mirrors.nxthost.com
+texlive.info
+mirror.informatik.hs-fulda.de
