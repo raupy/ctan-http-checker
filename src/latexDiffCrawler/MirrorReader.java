@@ -169,7 +169,7 @@ public class MirrorReader extends Thread {
 			if (Main.difficultFiles.contains(file)) {
 				if (file.endsWith(".")) /* systems\mac\textures\information\FAQ.comp.text.tex. */
 					/* support\qfig\qfig3ple. */
-					file = (String) file.subSequence(0, file.length() - 1);
+					file = (String) file.subSequence(0, file.length() - 2);
 				else {
 					File orgFile = new File(source);
 					if (orgFile.exists() && orgFile.isDirectory())

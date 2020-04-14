@@ -81,8 +81,6 @@ public class MasterHashHelper {
 					
 			}
 		}
-		System.out.println(files.size());
-		System.out.println(map.size());
 		saveHashes();
 	}
 

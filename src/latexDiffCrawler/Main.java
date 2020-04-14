@@ -205,7 +205,6 @@ public class Main {
 
 	private static void startThreads(List<MirrorReader> readers, List<TimeStampThread> tsThreads) {
 		for (Mirror mirror : equalTSmirrors) {
-			System.out.println(equalTSmirrors.size());
 			TimeStampThread tsThread = new TimeStampThread(mirror, readers);
 			tsThreads.add(tsThread);
 			tsThread.start();
@@ -276,7 +275,15 @@ public class Main {
 			if (now.getMinute() < 2)
 				now = now.minusHours(1);
 			hourOfTS = masterTS.getHour();
-			int newOffset = hourOfTS - now.getHour();
+			int newOffset;
+			if(now.getHour() < masterTS.getHour()) { 
+				// like it's a new day and the time stamp is still at the day before
+				// like new day at 00:30 and the time stamp is 22:02
+				int bigHour = 24 + now.getHour();
+				newOffset = hourOfTS - bigHour;
+			}
+			else
+				newOffset = hourOfTS - now.getHour();
 			if (newOffset != offset) {
 				for (Mirror mirror : mirrors) {
 					mirror.notifyOffsetChanged(offset, newOffset);
@@ -367,7 +374,6 @@ public class Main {
 		loadDifficultFiles();
 		loadBlacklist();
 		removeBlacklistMirrors();
-		System.out.println(mirrors.size());
 		MasterRSync mrs = new MasterRSync();
 
 		while (mirrors != null && !mirrors.isEmpty()) {

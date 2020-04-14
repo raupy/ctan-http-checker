@@ -321,6 +321,12 @@ public class HTTPDownloadUtility {
 				e.printStackTrace();
 			}
 		}
+		else {
+			if(masterChecksum == 0 || getHash(Constants.MASTER_DIR + "\\" + file, null) == 0) {
+				// the file probably doesn't exist anymore
+				equal = true; 
+			}
+		}
 		return equal;
 	}
 

@@ -23,6 +23,7 @@ public class TimeStampThread extends Thread {
 		while (!exit) {
 			sleepMinutes(10);
 			if (mirror.setTimestamp()) {
+				System.out.println("Mirror " + mirror.getName() + " is out of sync.");
 				for (MirrorReader reader : mirrorReaders) {
 					reader.removeMirror(mirror);
 				}
