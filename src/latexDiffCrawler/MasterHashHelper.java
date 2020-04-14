@@ -89,6 +89,7 @@ public class MasterHashHelper {
 	 * to the MASTER_HASHES file
 	 */
 	private void initMap() {
+		System.out.println("Start computing the hash file. This is going to take some minutes.");
 		map = new Hashtable<String, Long>(files.size() + 5000, 1);
 		for (String file : files) {
 			computeHashAndAddToMap(file);
@@ -169,7 +170,7 @@ public class MasterHashHelper {
 				}
 			}
 		} catch (IOException e) {
-			System.out.println("No master hash file yet, start computing it. This is going to take some minutes.");
+			System.out.println("No master hash file yet."); 
 		}
 		return didLoad;
 	}

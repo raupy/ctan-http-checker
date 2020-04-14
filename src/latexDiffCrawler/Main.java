@@ -179,25 +179,28 @@ public class Main {
 		List<String> files = msh.getFiles();
 		int size = files.size();
 		int divisor = 25; // number of MirrorReader Threads
-		if(equalTSmirrors.size() == 1 && equalTSmirrors.get(0).getPrio() == 1) {
-			if(equalTSmirrors.get(0).getName().equals("mirror.yongbok.net")) divisor = 40;
-			else divisor = 30;
+		if (equalTSmirrors.size() == 1 && equalTSmirrors.get(0).getPrio() == 1) {
+			if (equalTSmirrors.get(0).getName().equals("mirror.yongbok.net")
+					|| equalTSmirrors.get(0).getName().equals("mirrors.cqu.edu.cn"))
+				divisor = 40;
+			else
+				divisor = 30;
 		}
 		List<MirrorReader> readers = createReaders(files, size, divisor);
 		List<TimeStampThread> tsThreads = new ArrayList<TimeStampThread>();
 		startThreads(readers, tsThreads);
 		checkAndSleep(size, readers);
 		for (TimeStampThread tsThread : tsThreads) {
-			if(tsThread.isAlive())
+			if (tsThread.isAlive())
 				tsThread.exit();
 		}
 		List<Mirror> outOfSyncMirrors = readers.get(0).getOutOfSyncMirrors();
 		for (Mirror mirror : equalTSmirrors) {
-			if(!outOfSyncMirrors.contains(mirror)) {
+			if (!outOfSyncMirrors.contains(mirror)) {
 				blacklist.add(mirror.getName());
 				mirrors.remove(mirror);
 			}
-				
+
 		}
 		saveBlacklist();
 
@@ -276,13 +279,12 @@ public class Main {
 				now = now.minusHours(1);
 			hourOfTS = masterTS.getHour();
 			int newOffset;
-			if(now.getHour() < masterTS.getHour()) { 
+			if (now.getHour() < masterTS.getHour()) {
 				// like it's a new day and the time stamp is still at the day before
 				// like new day at 00:30 and the time stamp is 22:02
 				int bigHour = 24 + now.getHour();
 				newOffset = hourOfTS - bigHour;
-			}
-			else
+			} else
 				newOffset = hourOfTS - now.getHour();
 			if (newOffset != offset) {
 				for (Mirror mirror : mirrors) {
@@ -356,10 +358,12 @@ public class Main {
 				}
 			}
 			if (x.isAfter(LocalDateTime.of(today, time))) {
-				if (list.size() == 1 && list.get(0).getPrio() == 1) Main.sleepUntilLocalDateTime(x.plusMinutes(3));
-				else Main.sleepUntilLocalDateTime(x.plusMinutes(10));
+				if (list.size() == 1 && list.get(0).getPrio() == 1)
+					Main.sleepUntilLocalDateTime(x.plusMinutes(3));
+				else
+					Main.sleepUntilLocalDateTime(x.plusMinutes(10));
 			}
-				
+
 		}
 
 	}
@@ -390,8 +394,8 @@ public class Main {
 				}
 				potentialMirrors = Main.findEqualTimeStampMirrors();
 			}
-			if(i == 5 && (potentialMirrors == null || potentialMirrors.isEmpty())) {
-				if(!mrs.shouldSync(MirrorReader.getMasterTimeStamp()))
+			if (i == 5 && (potentialMirrors == null || potentialMirrors.isEmpty())) {
+				if (!mrs.shouldSync(MirrorReader.getMasterTimeStamp()))
 					sleepUntilXX03();
 				continue;
 			}
