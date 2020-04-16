@@ -182,7 +182,7 @@ public class Main {
 		if (equalTSmirrors.size() == 1 && equalTSmirrors.get(0).getPrio() == 1) {
 			if (equalTSmirrors.get(0).getName().equals("mirror.yongbok.net")
 					|| equalTSmirrors.get(0).getName().equals("mirrors.cqu.edu.cn"))
-				divisor = 40;
+				divisor = 45;
 			else
 				divisor = 30;
 		}
@@ -250,12 +250,12 @@ public class Main {
 		ArrayList<Mirror> list = null;
 		if (hourOfMasterTS != -1) {
 			list = magicController(hourOfMasterTS);
-			if (list != null) {
+			if (list != null && !list.isEmpty()) {
 				System.out.println(
 						"The following mirrors have the highest priority right now. They should have (maybe not yet) a timestamp at "
 								+ hourOfMasterTS + " o'clock like the local Master.");
 				for (Mirror mirror : list)
-					System.out.println("Mirror " + mirror.getName());
+					System.out.println(mirror.getName());
 			}
 			waitForLatestMirror(list, hourOfMasterTS);
 		}
@@ -374,19 +374,22 @@ public class Main {
 	// TODO: MirrorReader class: react to different http error codes like 400 / 500
 
 	public static void main(String[] args) {
+		Constants.REPO_DIR = args[0];
+		Constants.ROOT_DIR = args[1];
 		mirrors = init();
 		loadDifficultFiles();
 		loadBlacklist();
 		removeBlacklistMirrors();
 		MasterRSync mrs = new MasterRSync();
-
 		while (mirrors != null && !mirrors.isEmpty()) {
+			System.out.println("The following mirrors are remaining:");
+			for(Mirror mirror: mirrors) System.out.println(mirror.getName());
 			mrs.download();
 			msh = mrs.getMasterHashHelper();
 			equalTSmirrors = Main.getEqualTSMirrorsAndWait();
 			ArrayList<Mirror> potentialMirrors = Main.findEqualTimeStampMirrors();
 			int i = 0;
-			for (i = 0; i < 5 && (potentialMirrors == null || potentialMirrors.isEmpty()); i++) {
+			for (i = 0; i < 5 && equalTSmirrors.size() != 0 && (potentialMirrors == null || potentialMirrors.isEmpty()); i++) {
 				try {
 					Thread.sleep(300000);
 				} catch (InterruptedException e) {
@@ -394,7 +397,7 @@ public class Main {
 				}
 				potentialMirrors = Main.findEqualTimeStampMirrors();
 			}
-			if (i == 5 && (potentialMirrors == null || potentialMirrors.isEmpty())) {
+			if (equalTSmirrors.isEmpty() || i == 5 && (potentialMirrors == null || potentialMirrors.isEmpty())) {
 				if (!mrs.shouldSync(MirrorReader.getMasterTimeStamp()))
 					sleepUntilXX03();
 				continue;

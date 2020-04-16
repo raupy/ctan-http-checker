@@ -9,3 +9,15 @@ mirror.szerverem.hu
 mirrors.nxthost.com
 texlive.info
 mirror.informatik.hs-fulda.de
+muug.ca
+ctan.altspu.ru
+mirrors.sjtug.sjtu.edu.cn
+mirrors.chevalier.io
+mirror.ibcp.fr
+ctan.net
+ctan.space-pro.be
+ctan.triasinformatica.nl
+mirrors.cqu.edu.cn
+ctan.kako-dev.de
+ctan.math.washington.edu
+ctan.mirrors.hoobly.com

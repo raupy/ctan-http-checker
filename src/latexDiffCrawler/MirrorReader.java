@@ -13,8 +13,6 @@ import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
 
-
-
 /*
  * This class implements the whole comparing functionality and compares all 
  * the files that are listed in the @files list. 
@@ -34,7 +32,6 @@ public class MirrorReader extends Thread {
 	// attributes to work with other MirrorReaders
 	private int checkedFilesForCurrentList = 0;
 	private List<MirrorReader> mirrorReaders;
-	
 
 	public MirrorReader(ArrayList<Mirror> mirrors, List<String> files, Hashtable<String, Long> table) {
 		this.mirrors = mirrors;
@@ -70,8 +67,8 @@ public class MirrorReader extends Thread {
 	public void setMirrorReaders(List<MirrorReader> readers) {
 		this.mirrorReaders = readers;
 	}
-	
-	public List<Mirror> getOutOfSyncMirrors(){
+
+	public List<Mirror> getOutOfSyncMirrors() {
 		return outOfSyncMirrors;
 	}
 
@@ -98,7 +95,8 @@ public class MirrorReader extends Thread {
 			if (!compareAgain.isEmpty())
 				compareFilesAgain(compareAgain);
 		}
-		if(!exit) helpOtherThread();
+		if (!exit)
+			helpOtherThread();
 	}
 
 	/*
@@ -113,7 +111,8 @@ public class MirrorReader extends Thread {
 			masterChecksum = table.get(file);
 		for (int i = 0; i < mirrors.size(); i++) {
 			Mirror mirror = mirrors.get(i);
-			if(outOfSyncMirrors.contains(mirror)) continue;
+			if (outOfSyncMirrors.contains(mirror))
+				continue;
 			if (!compareSpecificFileForSpecificMirror(file, mirror, masterChecksum))
 				compareAgain.add(mirror.getName() + " ,,, " + file + " ,,, " + masterChecksum);
 		}
@@ -130,22 +129,28 @@ public class MirrorReader extends Thread {
 		boolean compareNotAgain = HTTPDownloadUtility.filesAreEqual(file, mirror, masterChecksum, true);
 		if (!compareNotAgain) {
 			compareNotAgain = HTTPDownloadUtility.filesAreEqual(file, mirror, masterChecksum, false);
-			if(!compareNotAgain) {
+			if (!compareNotAgain) {
 				String saveDir = MirrorReader.makeDir(mirror, file);
 				boolean didDownload = HTTPDownloadUtility.downloadFile(mirror.getUrl() + file,
 						mirror.getDirectory() + "\\" + file, false);
 				if (didDownload) {
-					// Copy the master File
 					compareNotAgain = true;
-					String fileName = MirrorReader.getFileName(file);
-					copyFile(fileName, file, saveDir);
+					if (HTTPDownloadUtility.compareHashesForLocalFiles(Constants.MASTER_DIR + "\\" + file,
+							mirror.getDirectory() + "\\" + file)) {
+						File delete = new File(mirror.getDirectory() + "\\" + file);
+						delete.delete();
+					} else {
+						// Copy the master File
+						String fileName = MirrorReader.getFileName(file);
+						copyFile(fileName, file, saveDir);
+					}
 				}
 			}
-			
+
 		}
 		return compareNotAgain;
 	}
-	
+
 	/*
 	 * A bit ugly method that normally just has to copy the @file from the master
 	 * directory to the @saveDir directory. The problem is, that it has to cope with
@@ -203,7 +208,7 @@ public class MirrorReader extends Thread {
 			}
 		}
 	}
-	
+
 	/*
 	 * Returns the last part of an @uri, i.e. the name of the file that is uploaded
 	 * there.
@@ -270,7 +275,6 @@ public class MirrorReader extends Thread {
 		return equalTimeStamps;
 	}
 
-
 	/*
 	 * Is called from another MirrorReader that is already finished and wants to
 	 * help this instance. Divides the @files list in two equally big sublists and
@@ -296,7 +300,7 @@ public class MirrorReader extends Thread {
 		for (int j = 0; j < mirrorReaders.size(); j++) {
 			MirrorReader reader = mirrorReaders.get(j);
 			int stillTocheck = 0;
-			if(reader.getFiles() != null)
+			if (reader.getFiles() != null)
 				stillTocheck = reader.getFiles().size() - reader.getCheckedFilesForCurrentList();
 			if (stillTocheck >= i && !reader.equals(this)) {
 				i = stillTocheck;
@@ -326,7 +330,7 @@ public class MirrorReader extends Thread {
 	// @mirror
 	public void removeMirror(Mirror mirror) {
 		outOfSyncMirrors.add(mirror);
-		if(outOfSyncMirrors.size() == mirrors.size()) {
+		if (outOfSyncMirrors.size() == mirrors.size()) {
 			exit = true;
 		}
 	}
