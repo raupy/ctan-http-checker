@@ -2,7 +2,6 @@ package latexDiffCrawler;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
@@ -89,6 +88,7 @@ public class Main {
 				}
 			}
 		} catch (IOException e) {
+			if(!file.contains(Constants.DIFFICULT_FILES)) e.printStackTrace();
 		}
 	}
 
@@ -376,6 +376,7 @@ public class Main {
 	public static void main(String[] args) {
 		Constants.REPO_DIR = args[0];
 		Constants.ROOT_DIR = args[1];
+		new Constants();
 		mirrors = init();
 		loadDifficultFiles();
 		loadBlacklist();

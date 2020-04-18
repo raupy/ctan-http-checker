@@ -16,4 +16,15 @@ public class Constants {
 
 	public static String DANTE = "http://dante.ctan.org/tex-archive/";
 	
+	public Constants() {
+		MIRROR_DIR = REPO_DIR + "\\mirrors";
+		MASTER_DIR = REPO_DIR + "\\master";
+		MASTER_DIFFICULT_FILES_DIR = REPO_DIR + "\\masterDifficultFiles";
+		RSCYNC_LOG = REPO_DIR + "\\rsync.log";
+		mirrorData = ROOT_DIR + "\\mirrorData.txt";
+		DIFFICULT_FILES = ROOT_DIR + "\\difficultFiles.txt";
+		BLACKLIST = ROOT_DIR + "\\blacklist.txt";
+		MASTER_HASHES = ROOT_DIR + "\\masterHashes.txt";
+		fileWithCtanMirrors = ROOT_DIR + "\\CtanMirrors.txt";
+	}
 }
