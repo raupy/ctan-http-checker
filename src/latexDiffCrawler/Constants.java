@@ -7,7 +7,7 @@ public class Constants {
 	public static String MASTER_DIFFICULT_FILES_DIR = REPO_DIR + "\\masterDifficultFiles";
 	public static String RSCYNC_LOG = REPO_DIR + "\\rsync.log";
 	
-	public static String ROOT_DIR = "C:\\Users\\Lilli\\git\\ctan_checker_http\\src";
+	public static String ROOT_DIR = "src";
 	public static String mirrorData = ROOT_DIR + "\\mirrorData.txt";
 	public static String DIFFICULT_FILES = ROOT_DIR + "\\difficultFiles.txt";
 	public static String BLACKLIST = ROOT_DIR + "\\blacklist.txt";
@@ -21,10 +21,5 @@ public class Constants {
 		MASTER_DIR = REPO_DIR + "\\master";
 		MASTER_DIFFICULT_FILES_DIR = REPO_DIR + "\\masterDifficultFiles";
 		RSCYNC_LOG = REPO_DIR + "\\rsync.log";
-		mirrorData = ROOT_DIR + "\\mirrorData.txt";
-		DIFFICULT_FILES = ROOT_DIR + "\\difficultFiles.txt";
-		BLACKLIST = ROOT_DIR + "\\blacklist.txt";
-		MASTER_HASHES = ROOT_DIR + "\\masterHashes.txt";
-		fileWithCtanMirrors = ROOT_DIR + "\\CtanMirrors.txt";
 	}
 }

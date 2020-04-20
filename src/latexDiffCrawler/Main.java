@@ -1,16 +1,20 @@
 package latexDiffCrawler;
 
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -374,8 +378,13 @@ public class Main {
 	// TODO: MirrorReader class: react to different http error codes like 400 / 500
 
 	public static void main(String[] args) {
+		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm");
+		try {
+		    System.setOut(new PrintStream(new BufferedOutputStream(new FileOutputStream("logfile" + LocalDateTime.now().format(formatter) + ".txt")), true));
+		} catch (Exception e) {
+		     e.printStackTrace();
+		}
 		Constants.REPO_DIR = args[0];
-		Constants.ROOT_DIR = args[1];
 		new Constants();
 		mirrors = init();
 		loadDifficultFiles();
