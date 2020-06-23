@@ -1,0 +1,6 @@
+http://ctan.math.illinois.edu/
+http://ctan.mirror.colo-serv.net/
+http://ctan.mirror.ftn.uns.ac.rs/
+http://ctan.mirror.garr.it/ctan/
+http://ftp.math.purdue.edu/mirrors/ctan.org/
+https://mirror.aarnet.edu.au/pub/CTAN/

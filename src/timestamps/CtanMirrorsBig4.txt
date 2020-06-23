@@ -1,0 +1,4 @@
+https://ctan.crest.fr/tex-archive/
+http://mirror.yongbok.net/ctan/
+http://mirrors.cqu.edu.cn/CTAN/
+https://ctan.kako-dev.de/
